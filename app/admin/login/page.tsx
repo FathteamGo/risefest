@@ -1,13 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { admins } from '../../../lib/dummy-data';
+import { admins } from '@/lib/dummy-data';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Container from '../../../components/ui/Container';
-import Card from '../../../components/ui/Card';
-import Button from '../../../components/ui/Button';
-import Input from '../../../components/ui/Input';
+import Container from '@/components/ui/Container';
+import Card from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
 
 export default function AdminLoginPage() {
   const router = useRouter();

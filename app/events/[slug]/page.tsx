@@ -1,15 +1,16 @@
-import { events, eventTickets } from '../../../lib/dummy-data';
+import { eventService, eventTicketService } from '@/lib/data-service';
 import Link from 'next/link';
-import Container from '../../../components/ui/Container';
-import Card from '../../../components/ui/Card';
-import Button from '../../../components/ui/Button';
+import Container from '@/components/ui/Container';
+import Card from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
+import { Event, EventTicket } from '@/types';
 
 export default async function EventDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   // Await the params to fix the dynamic route issue
   const { slug } = await params;
   
-  // Find the event by slug
-  const event = events.find(e => e.slug === slug);
+  // Fetch the event by slug
+  const event = await eventService.getEventBySlug(slug);
   
   // If event not found, show 404
   if (!event) {
@@ -34,7 +35,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
   }
 
   // Get tickets for this event
-  const tickets = eventTickets.filter(ticket => ticket.event_id === event.id);
+  const tickets = await eventTicketService.getTicketsByEventId(event.id);
 
   // Format date for display
   const formatDate = (dateString: string) => {

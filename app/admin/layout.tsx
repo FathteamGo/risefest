@@ -1,4 +1,4 @@
-import Layout from '../../components/Layout';
+import Header from "@/components/Header";
 
 export default function AdminLayout({
   children,
@@ -6,8 +6,10 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <Layout isAdmin={true}>
-      {children}
-    </Layout>
+    <div className="min-h-screen flex flex-col app-bg">
+      <main className="flex-grow container mx-auto px-4 py-6">
+        {children}
+      </main>
+    </div>
   );
 }

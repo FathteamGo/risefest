@@ -1,44 +1,53 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { events } from '../../lib/dummy-data';
-import EventCard from '../../components/ui/EventCard';
-import Container from '../../components/ui/Container';
-import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
-import LoadingCard from '../../components/ui/LoadingCard';
+import { eventService } from '@/lib/data-service';
+import EventCard from '@/components/ui/EventCard';
+import Container from '@/components/ui/Container';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import LoadingCard from '@/components/ui/LoadingCard';
+import { Event } from '@/types';
 
 export default function EventsPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredEvents, setFilteredEvents] = useState(events);
+  const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Simulate loading delay
+  // Fetch events
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1000);
+    const fetchEvents = async () => {
+      try {
+        setLoading(true);
+        const events = await eventService.getAllEvents();
+        setFilteredEvents(events);
+      } catch (error) {
+        console.error('Failed to fetch events:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    return () => clearTimeout(timer);
+    fetchEvents();
   }, []);
 
-  // Filter events based on search term
-  useEffect(() => {
-    if (searchTerm.trim() === '') {
-      setFilteredEvents(events);
-    } else {
-      const filtered = events.filter(event => 
-        event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        event.location.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredEvents(filtered);
-    }
-  }, [searchTerm]);
-
-  const handleSearch = (e: React.FormEvent) => {
+  // Search events
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    // The filtering is already done in the useEffect, so we don't need to do anything here
+    try {
+      setLoading(true);
+      if (searchTerm.trim() === '') {
+        const events = await eventService.getAllEvents();
+        setFilteredEvents(events);
+      } else {
+        const events = await eventService.searchEvents(searchTerm);
+        setFilteredEvents(events);
+      }
+    } catch (error) {
+      console.error('Failed to search events:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {

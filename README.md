@@ -39,11 +39,22 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## API Integration
+
+This frontend is ready for backend integration. It includes:
+
+- A service layer that can switch between dummy data and real API calls
+- Environment configuration for API endpoints
+- TypeScript types for all data structures
+- API client for handling HTTP requests
+
+For detailed information about the API integration, see [API_INTEGRATION.md](API_INTEGRATION.md).
+
 ## Project Structure
 
 - `app/` - Next.js 15 app router pages
 - `components/` - Reusable UI components
-- `lib/` - Utility functions and dummy data
+- `lib/` - Utility functions, dummy data, and API clients
 - `types/` - TypeScript type definitions
 - `public/` - Static assets
 
