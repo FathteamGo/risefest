@@ -20,7 +20,7 @@ export default function EventsPage() {
       try {
         setLoading(true);
         const events = await eventService.getAllEvents();
-        setFilteredEvents(events);
+        setFilteredEvents(events.data);
       } catch (error) {
         console.error('Failed to fetch events:', error);
       } finally {
@@ -93,7 +93,7 @@ export default function EventsPage() {
           </form>
         </div>
 
-        {filteredEvents.length === 0 ? (
+        {filteredEvents?.length === 0 ? (
           <div className="text-center py-12">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -106,7 +106,7 @@ export default function EventsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredEvents.map(event => (
+            {filteredEvents?.map(event => (
               <EventCard key={event.id} event={event} />
             ))}
           </div>

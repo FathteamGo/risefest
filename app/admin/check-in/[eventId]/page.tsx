@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { events, ticketTransactions, eventTickets } from '@/@/lib/dummy-data';
+import { events, ticketTransactions, eventTickets } from '@//lib/dummy-data';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import Link from 'next/link';
-import Container from '@/@/components/ui/Container';
-import Card from '@/@/components/ui/Card';
-import Button from '@/@/components/ui/Button';
+import Container from '@//components/ui/Container';
+import Card from '@//components/ui/Card';
+import Button from '@//components/ui/Button';
 
 // Use the correct Next.js type for page parameters
 export default function AdminCheckInPage({ params }: { params: { eventId: string } }) {

@@ -2,7 +2,7 @@
 // This module provides functions to interact with the backend API
 // It follows the same structure as dummy-data.ts but with actual API calls
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
 
 // Helper function to handle API requests
 const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
@@ -11,6 +11,7 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   const config: RequestInit = {
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${process.env.NEXT_PUBLIC_API_KEY}`,
       ...options.headers,
     },
     ...options,
@@ -35,22 +36,22 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
 export const eventApi = {
   // Get all events
   getAllEvents: async () => {
-    return apiRequest('/events');
+    return apiRequest('/dashboard/events');
   },
 
   // Get event by slug
   getEventBySlug: async (slug: string) => {
-    return apiRequest(`/events/slug/${slug}`);
+    return apiRequest(`/dashboard/events/slug/${slug}`);
   },
 
   // Get event by ID
   getEventById: async (id: number) => {
-    return apiRequest(`/events/${id}`);
+    return apiRequest(`/dashboard/events/${id}`);
   },
 
   // Search events
   searchEvents: async (query: string) => {
-    return apiRequest(`/events/search?q=${encodeURIComponent(query)}`);
+    return apiRequest(`/dashboard/events/search?q=${encodeURIComponent(query)}`);
   },
 };
 
@@ -58,12 +59,12 @@ export const eventApi = {
 export const eventTicketApi = {
   // Get tickets for an event
   getTicketsByEventId: async (eventId: number) => {
-    return apiRequest(`/event-tickets/event/${eventId}`);
+    return apiRequest(`/dashboard/event-tickets/event/${eventId}`);
   },
 
   // Get ticket by ID
   getTicketById: async (id: number) => {
-    return apiRequest(`/event-tickets/${id}`);
+    return apiRequest(`/dashboard/event-tickets/${id}`);
   },
 };
 
@@ -71,7 +72,7 @@ export const eventTicketApi = {
 export const ticketTransactionApi = {
   // Create a new ticket transaction
   createTransaction: async (data: any) => {
-    return apiRequest('/ticket-transactions', {
+    return apiRequest('/dashboard/ticket-transactions', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -79,12 +80,12 @@ export const ticketTransactionApi = {
 
   // Get transaction by UUID
   getTransactionByUuid: async (uuid: string) => {
-    return apiRequest(`/ticket-transactions/${uuid}`);
+    return apiRequest(`/dashboard/ticket-transactions/${uuid}`);
   },
 
   // Update transaction status
   updateTransactionStatus: async (uuid: string, status: string) => {
-    return apiRequest(`/ticket-transactions/${uuid}/status`, {
+    return apiRequest(`/dashboard/ticket-transactions/${uuid}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     });

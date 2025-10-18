@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import Layout from '@/components/Layout';
 
 export const metadata: Metadata = {
-  title: 'Event Ticketing System',
+  title: 'MJFest - Muda Juara Festival',
   description: 'Event booking and ticketing system',
 };
 

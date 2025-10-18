@@ -1,13 +1,13 @@
 'use client'
 
-import { events, eventTickets } from '@/@/lib/dummy-data';
-import { Event, EventTicket } from '@/@/types';
+import { events, eventTickets } from '@//lib/dummy-data';
+import { Event, EventTicket } from '@//types';
 import Link from 'next/link';
 import { useState } from 'react';
-import Container from '@/@/components/ui/Container';
-import Card from '@/@/components/ui/Card';
-import Button from '@/@/components/ui/Button';
-import Input from '@/@/components/ui/Input';
+import Container from '@//components/ui/Container';
+import Card from '@//components/ui/Card';
+import Button from '@//components/ui/Button';
+import Input from '@//components/ui/Input';
 
 export default async function TicketRegistrationPage({ params, searchParams }: { params: Promise<{ slug: string }>, searchParams: { ticket?: string } }) {
   // Await the params to fix the dynamic route issue

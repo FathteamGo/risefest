@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Card from './Card';
 
 export default function EventCard({ event }: { event: Event }) {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
   // Format date for display
   const formatDate = (dateString: string) => {
     const options: Intl.DateTimeFormatOptions = { 
@@ -19,7 +20,7 @@ export default function EventCard({ event }: { event: Event }) {
     <Card className="h-full flex flex-col card-hover">
       <div className="relative aspect-[4/5] overflow-hidden rounded-t-lg">
         <img 
-          src={event.thumbnail} 
+          src={`${baseUrl}/${event.image}`} 
           alt={event.title} 
           className="w-full h-full object-cover transition-transform duration-300 ease-in-out"
           loading="lazy"
