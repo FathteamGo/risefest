@@ -20,7 +20,8 @@ export default function EventsPage() {
       try {
         setLoading(true);
         const events = await eventService.getAllEvents();
-        setFilteredEvents(events.data);
+        setFilteredEvents(events);
+        // setFilteredEvents(events.data);
       } catch (error) {
         console.error('Failed to fetch events:', error);
       } finally {

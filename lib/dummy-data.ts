@@ -11,7 +11,7 @@ export const events = [
     banner: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1200&q=80',
     location: 'Jakarta Convention Center, Jakarta',
     link: 'https://techconference2025.com',
-    start_date: '2025-11-15T09:00:00Z',
+    start_date: '2025-10-17T09:00:00Z',
     end_date: '2025-11-16T18:00:00Z',
     status: 'active' as const,
     created_at: '2025-10-01T10:00:00Z',
@@ -253,7 +253,7 @@ export const admins = [
   {
     id: 1,
     name: 'Admin User',
-    email: 'admin@example.com',
+    email: 'admin@example.com', // password
     password: '$2b$10$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', // hashed password
     role: 'admin' as const,
     status: 'active' as const,
@@ -263,7 +263,7 @@ export const admins = [
   {
     id: 2,
     name: 'Super Admin',
-    email: 'superadmin@example.com',
+    email: 'superadmin@example.com', // password
     password: '$2b$10$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', // hashed password
     role: 'superadmin' as const,
     status: 'active' as const,

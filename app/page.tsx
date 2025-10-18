@@ -24,7 +24,8 @@ export default function Home() {
         
         // Fetch all events from the backend
         const events = await eventService.getAllEvents();
-        const allEvents = events.data;
+        const allEvents = events;
+        // const allEvents = events.data;
         
         // Get latest events (sorted by created_date DESC)
         const sortedEvents = [...allEvents].sort((a, b) => 
