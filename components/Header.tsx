@@ -1,22 +1,85 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import Image from 'next/image';
+import { usePathname, useRouter } from 'next/navigation';
 
 export default function Header() {
+  // -------------------------------
+  // State untuk menghindari hydration mismatch
+  // -------------------------------
+  const [isClient, setIsClient] = useState(false);
+  const [isAuthed, setIsAuthed] = useState(false);
   const pathname = usePathname();
-  
-  const isAdminRoute = pathname?.startsWith('/admin');
-  
+  const router = useRouter();
+  const isAdmin = pathname?.startsWith('/admin');
+
+  useEffect(() => {
+    // Aman dibaca di client saja
+    setIsClient(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      setIsAuthed(!!token);
+    } catch {
+      setIsAuthed(false);
+    }
+  }, []);
+
+  // -------------------------------
+  // Aksi keluar admin (demo)
+  // -------------------------------
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem('adminToken');
+    } catch {}
+    router.replace('/admin/login');
+  };
+
   return (
-    <header className="bg-white bg-opacity-50 backdrop-filter shadow-sm border-b border-gray-200 z-40 sticky top-0">
-      <div className="container mx-auto px-4">
-        <div className="flex justify-center items-center h-16">
-          <div className="flex items-center">
-            <Link href={isAdminRoute ? "/admin/events" : "/"} className="text-xl font-bold text-primary">
-              {isAdminRoute ? "MJFest Admin" : "MJFest"}
-            </Link>
-          </div>
+    <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-white/85 backdrop-blur">
+      <div className="mx-auto max-w-7xl px-4">
+        <div className="flex h-16 items-center justify-between">
+          {/* Kiri: Logo + judul */}
+          <Link
+            href={isAdmin ? '/admin/events' : '/'}
+            className="inline-flex items-center gap-3"
+            aria-label={isAdmin ? 'Ke halaman acara admin' : 'Ke beranda'}
+          >
+            {/* Ikon: pakai /public/icons/placeholder.jpg; */}
+            <span className="relative inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-md ring-1 ring-slate-200 shadow-sm">
+              <Image
+                src="/icons/placeholder.jpg"
+                alt="MJFest Logo" 
+                width={80}
+                height={80}
+                className="object-contain"
+              />
+            </span>
+
+            <div className="leading-tight">
+              <p className="text-[15px] font-semibold tracking-tight text-slate-900">
+                {isAdmin ? 'MJFest Admin' : 'MJFest'}
+              </p>
+              {isAdmin ? (
+                <p className="text-[11px] text-slate-500">Konsol Admin</p>
+              ) : null}
+            </div>
+          </Link>
+
+          {/* Kanan: tombol keluar hanya di /admin & saat sudah login (dibaca di client) */}
+          {isClient && isAdmin && isAuthed ? (
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-200"
+              aria-label="Keluar dari konsol admin"
+            >
+              Keluar
+            </button>
+          ) : (
+            // Jika bukan admin / belum login, kosongkan ruang agar layout stabil (opsional)
+            <div className="h-6 w-0 md:w-0" aria-hidden="true" />
+          )}
         </div>
       </div>
     </header>

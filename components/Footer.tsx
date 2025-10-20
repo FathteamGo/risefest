@@ -2,10 +2,17 @@ import Link from 'next/link';
 
 export default function Footer({ isAdmin = false }: { isAdmin?: boolean }) {
   return (
-    <footer className="border-t mt-4 pb-8 mb-4 border-gray-200 items-center">
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-wrap gap-1 justify-center text-sm text-gray-600">
-          Developed by <Link href="https://fathforce.com" className="text-bold text-gray-900" target='_blank'>Fathforce</Link>
+    <footer className="border-t border-slate-200 bg-white">
+      <div className="mx-auto max-w-7xl px-4 py-6">
+        <div className="flex justify-center text-sm text-slate-500">
+          <span className="mr-1">Dikembangkan oleh</span>
+          <Link
+            href="https://fathforce.com"
+            target="_blank"
+            className="font-medium text-slate-700 hover:underline"
+          >
+            Fathforce
+          </Link>
         </div>
       </div>
     </footer>

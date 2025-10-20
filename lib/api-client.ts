@@ -1,117 +1,149 @@
+// lib/api-client.ts
 // API Client for backend integration
-// This module provides functions to interact with the backend API
-// It follows the same structure as dummy-data.ts but with actual API calls
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || 'https://cmsmj.fathforce.com/api';
 
-// Helper function to handle API requests
-const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
+/** Helper: fetch + JSON + error handling */
+const apiRequest = async <T = any>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> => {
   const url = `${API_BASE_URL}${endpoint}`;
-  
+
   const config: RequestInit = {
+    // agar selalu ambil data terbaru (Next.js)
+    cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env.NEXT_PUBLIC_API_KEY}`,
+      ...(process.env.NEXT_PUBLIC_API_KEY
+        ? { Authorization: `Bearer ${process.env.NEXT_PUBLIC_API_KEY}` }
+        : {}),
       ...options.headers,
     },
     ...options,
   };
 
-  try {
-    const response = await fetch(url, config);
-    
-    if (!response.ok) {
-      throw new Error(`API request failed with status ${response.status}`);
-    }
-    
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error(`API request error for ${url}:`, error);
-    throw error;
+  const res = await fetch(url, config);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(
+      `API request failed ${res.status} ${res.statusText} (${url}) ${body}`
+    );
   }
+  return (await res.json()) as T;
 };
 
-// Event API functions
+/** Helper: ambil .data jika ada, kalau tidak ya kembalikan objeknya */
+const pickData = <T = any>(json: any): T => {
+  if (json && typeof json === 'object' && 'data' in json) {
+    return json.data as T;
+  }
+  return json as T;
+};
+
+/* =========================
+   Event API
+   ========================= */
 export const eventApi = {
-  // Get all events
+  // Get all events → return Array<Event>
   getAllEvents: async () => {
-    return apiRequest('/dashboard/events');
+    const json = await apiRequest('/dashboard/events');
+    return pickData(json); // <-- penting: array langsung
   },
 
-  // Get event by slug
+  // Get event by slug → return Event
   getEventBySlug: async (slug: string) => {
-    return apiRequest(`/dashboard/events/slug/${slug}`);
+    const json = await apiRequest(`/dashboard/events/${slug}`);
+    return pickData(json);
   },
 
-  // Get event by ID
+  // Get event by ID → return Event
   getEventById: async (id: number) => {
-    return apiRequest(`/dashboard/events/${id}`);
+    const json = await apiRequest(`/dashboard/events/${id}`);
+    return pickData(json);
   },
 
-  // Search events
+  // Search events → return Array<Event>
   searchEvents: async (query: string) => {
-    return apiRequest(`/dashboard/events/search?q=${encodeURIComponent(query)}`);
+    const json = await apiRequest(
+      `/dashboard/events/search?q=${encodeURIComponent(query)}`
+    );
+    return pickData(json);
   },
 };
 
-// Event Ticket API functions
+/* =========================
+   Event Ticket API
+   ========================= */
 export const eventTicketApi = {
-  // Get tickets for an event
+  // Get tickets for an event → return Array<EventTicket>
   getTicketsByEventId: async (eventId: number) => {
-    return apiRequest(`/dashboard/event-tickets/event/${eventId}`);
+    const json = await apiRequest(`/dashboard/event-tickets/event/${eventId}`);
+    return pickData(json);
   },
 
-  // Get ticket by ID
+  // Get ticket by ID → return EventTicket
   getTicketById: async (id: number) => {
-    return apiRequest(`/dashboard/event-tickets/${id}`);
+    const json = await apiRequest(`/dashboard/event-tickets/${id}`);
+    return pickData(json);
   },
 };
 
-// Ticket Transaction API functions
+/* =========================
+   Ticket Transaction API
+   ========================= */
 export const ticketTransactionApi = {
-  // Create a new ticket transaction
+  // Create a new ticket transaction → return TicketTransaction
   createTransaction: async (data: any) => {
-    return apiRequest('/dashboard/ticket-transactions', {
+    const json = await apiRequest('/dashboard/ticket-transactions', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    return pickData(json);
   },
 
-  // Get transaction by UUID
+  // Get transaction by UUID → return TicketTransaction
   getTransactionByUuid: async (uuid: string) => {
-    return apiRequest(`/dashboard/ticket-transactions/${uuid}`);
+    const json = await apiRequest(`/dashboard/ticket-transactions/${uuid}`);
+    return pickData(json);
   },
 
-  // Update transaction status
+  // Update transaction status → return TicketTransaction / result
   updateTransactionStatus: async (uuid: string, status: string) => {
-    return apiRequest(`/dashboard/ticket-transactions/${uuid}/status`, {
+    const json = await apiRequest(`/dashboard/ticket-transactions/${uuid}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     });
+    return pickData(json);
   },
 };
 
-// Admin API functions
+/* =========================
+   Admin API
+   ========================= */
 export const adminApi = {
-  // Admin login
+  // Admin login → return User / token
   login: async (email: string, password: string) => {
-    return apiRequest('/admin/login', {
+    const json = await apiRequest('/admin/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
+    return pickData(json);
   },
 
-  // Get events for check-in (currently active events)
+  // Get events for check-in → return Array<Event>
   getEventsForCheckIn: async () => {
-    return apiRequest('/admin/events/check-in');
+    const json = await apiRequest('/admin/events/check-in');
+    return pickData(json);
   },
 
-  // Check-in a ticket
+  // Check-in a ticket → return result
   checkInTicket: async (uuid: string, adminId: number) => {
-    return apiRequest('/admin/check-in', {
+    const json = await apiRequest('/admin/check-in', {
       method: 'POST',
       body: JSON.stringify({ uuid, admin_id: adminId }),
     });
+    return pickData(json);
   },
 };

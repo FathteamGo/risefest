@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Container from '@/components/ui/Container';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import LoadingCard from '@/components/ui/LoadingCard';
 
 export default function MyEventsPage() {
@@ -100,7 +100,7 @@ export default function MyEventsPage() {
             </svg>
             <h2 className="text-xl font-bold mb-2">No Tickets Found</h2>
             <p className="text-secondary mb-6">You haven't purchased any event tickets yet</p>
-            <Button variant="primary" onClick={() => window.location.href = '/events'}>
+            <Button onClick={() => window.location.href = '/events'}>
               Browse Events
             </Button>
           </div>
@@ -130,8 +130,6 @@ export default function MyEventsPage() {
                 </div>
                 <div className="p-6 pt-0">
                   <Button 
-                    variant="primary" 
-                    fullWidth 
                     onClick={() => window.location.href = `/ticket/${ticket.id}`}
                   >
                     View Ticket
