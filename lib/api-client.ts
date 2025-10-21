@@ -1,21 +1,16 @@
-// lib/api-client.ts
-// API Client for backend integration
-
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || 'https://cmsmj.fathforce.com/api';
+  process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000/api';
 
 /** Helper: fetch + JSON + error handling */
-const apiRequest = async <T = any>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> => {
+const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<T> => {
   const url = `${API_BASE_URL}${endpoint}`;
 
   const config: RequestInit = {
-    // agar selalu ambil data terbaru (Next.js)
     cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
       ...(process.env.NEXT_PUBLIC_API_KEY
         ? { Authorization: `Bearer ${process.env.NEXT_PUBLIC_API_KEY}` }
         : {}),
@@ -26,10 +21,10 @@ const apiRequest = async <T = any>(
 
   const res = await fetch(url, config);
   if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(
-      `API request failed ${res.status} ${res.statusText} (${url}) ${body}`
-    );
+    // coba baca JSON error dari Laravel (422, dll)
+    let bodyText = '';
+    try { bodyText = await res.text(); } catch {}
+    throw new Error(`API request failed ${res.status} ${res.statusText} (${url}) ${bodyText}`);
   }
   return (await res.json()) as T;
 };
@@ -54,7 +49,7 @@ export const eventApi = {
 
   // Get event by slug → return Event
   getEventBySlug: async (slug: string) => {
-    const json = await apiRequest(`/dashboard/events/${slug}`);
+    const json = await apiRequest(`/dashboard/events/slug/${slug}`);
     return pickData(json);
   },
 
