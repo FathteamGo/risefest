@@ -39,6 +39,10 @@
   body { @apply bg-background text-foreground; }
 }
 
+@supports (height: 100svh) {
+  .min-h-\[100svh\] { min-height: 100svh !important; }
+}
+
 /* Additional custom styles */
 .line-clamp-1 {
   display: -webkit-box;

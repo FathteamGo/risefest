@@ -1,85 +1,68 @@
-// Data Service Layer
-// This module provides a unified interface for accessing data
-// It can switch between dummy data and real API based on environment
+// lib/data-service.ts
+// ✅ Unified data-access layer: real API vs dummy (auto switch)
 
 import { events, eventTickets, ticketTransactions, admins } from './dummy-data';
-import { 
-  eventApi, 
-  eventTicketApi, 
-  ticketTransactionApi, 
-  adminApi 
-} from './api-client';
-import { 
-  Event, 
-  EventTicket, 
-  TicketTransaction, 
-  User 
-} from '@/types';
+import { eventApi, eventTicketApi, ticketTransactionApi, adminApi } from './api-client';
+import type { Event, EventTicket, TicketTransaction, User } from '@/types';
 
-// Check if we should use the real API
 const USE_REAL_API = process.env.NEXT_PUBLIC_USE_REAL_API === 'true';
 
-// Event Service
+type AnyObj = Record<string, any>;
+const unwrap = (r: AnyObj) => r?.data ?? r?.result ?? r;
+
+/* =========================
+   Event Service
+   ========================= */
 export const eventService = {
-  // Get all events
-  getAllEvents: async (): Promise<Event[]> => {
-    if (USE_REAL_API) {
-      return await eventApi.getAllEvents();
-    }
+  async getAllEvents(): Promise<Event[]> {
+    if (USE_REAL_API) return await eventApi.getAllEvents();
     return events;
   },
-
-  // Get event by slug
-  getEventBySlug: async (slug: string): Promise<Event | undefined> => {
-    if (USE_REAL_API) {
-      return await eventApi.getEventBySlug(slug);
-    }
-    return events.find(event => event.slug === slug);
+  async getEventBySlug(slug: string): Promise<Event | undefined> {
+    if (USE_REAL_API) return await eventApi.getEventBySlug(slug);
+    return events.find((e) => e.slug === slug);
   },
-
-  // Search events
-  searchEvents: async (query: string): Promise<Event[]> => {
-    if (USE_REAL_API) {
-      return await eventApi.searchEvents(query);
-    }
-    const lowerQuery = query.toLowerCase();
-    return events.filter(event => 
-      event.title.toLowerCase().includes(lowerQuery) ||
-      event.description.toLowerCase().includes(lowerQuery) ||
-      event.location.toLowerCase().includes(lowerQuery)
+  async searchEvents(query: string): Promise<Event[]> {
+    if (USE_REAL_API) return await eventApi.searchEvents(query);
+    const q = query.toLowerCase();
+    return events.filter(
+      (e) =>
+        e.title.toLowerCase().includes(q) ||
+        e.description.toLowerCase().includes(q) ||
+        e.location.toLowerCase().includes(q)
     );
   },
 };
 
-// Event Ticket Service
+/* =========================
+   Event Ticket Service
+   ========================= */
 export const eventTicketService = {
-  // Get tickets for an event
-  getTicketsByEventId: async (eventId: number): Promise<EventTicket[]> => {
-    if (USE_REAL_API) {
-      return await eventTicketApi.getTicketsByEventId(eventId);
-    }
-    return eventTickets.filter(ticket => ticket.event_id === eventId);
+  async getTicketsByEventId(eventId: number): Promise<EventTicket[]> {
+    if (USE_REAL_API) return await eventTicketApi.getTicketsByEventId(eventId);
+    return eventTickets.filter((t) => t.event_id === eventId);
   },
-
-  // Get ticket by ID
-  getTicketById: async (id: number): Promise<EventTicket | undefined> => {
-    if (USE_REAL_API) {
-      return await eventTicketApi.getTicketById(id);
-    }
-    return eventTickets.find(ticket => ticket.id === id);
+  async getTicketById(id: number): Promise<EventTicket | undefined> {
+    if (USE_REAL_API) return await eventTicketApi.getTicketById(id);
+    return eventTickets.find((t) => t.id === id);
   },
 };
 
-// Ticket Transaction Service
+/* =========================
+   Ticket Transaction Service
+   ========================= */
 export const ticketTransactionService = {
-  // Create a new ticket transaction
-  createTransaction: async (data: any): Promise<TicketTransaction> => {
+  async createTransaction(data: AnyObj): Promise<AnyObj> {
     if (USE_REAL_API) {
-      return await ticketTransactionApi.createTransaction(data);
+      const res = await ticketTransactionApi.createTransaction(data);
+      return unwrap(res);
     }
-    // Mock implementation for dummy data
-    const newTransaction: any = {
-      id: Math.random().toString(36).substring(2, 15),
+
+    // dummy
+    const nowIso = new Date().toISOString();
+    const id = (globalThis as any).crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
+    const newTx: AnyObj = {
+      id,
       event_id: data.event_id,
       event_ticket_id: data.event_ticket_id,
       ticket_holder_name: data.ticket_holder_name,
@@ -88,71 +71,85 @@ export const ticketTransactionService = {
       buyer_name: data.buyer_name,
       buyer_phone: data.buyer_phone,
       buyer_email: data.buyer_email,
-      buyer_gender: data.buyer_gender,
-      buyer_city: data.buyer_city,
+      buyer_gender: data.buyer_gender ?? null,
+      buyer_city: data.buyer_city ?? null,
       payment_method: data.payment_method,
       payment_status: 'pending',
       status: 'pending',
       total_amount: data.total_amount,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      created_at: nowIso,
+      updated_at: nowIso,
     };
-    
-    // In a real implementation, we would save this to the database
-    // For dummy data, we just return the new transaction
-    return newTransaction as TicketTransaction;
+
+    if (['gopay', 'qris'].includes(String(data.payment_method))) {
+      return {
+        transaction: newTx,
+        snap_token: `dummy-snap-${id}`,
+        payment_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/ticket/${id}`,
+      };
+    }
+    if (String(data.payment_method).startsWith('va_')) {
+      const bank = String(data.payment_method).replace('va_', '').toUpperCase();
+      return {
+        transaction: newTx,
+        va_number: `${Math.floor(100000000000 + Math.random() * 900000000000)}`,
+        va_bank: bank,
+      };
+    }
+    return { transaction: newTx };
   },
 
-  // Get transaction by UUID
-  getTransactionByUuid: async (uuid: string): Promise<TicketTransaction | undefined> => {
+  async getTransactionByUuid(uuid: string): Promise<TicketTransaction | undefined> {
     if (USE_REAL_API) {
-      return await ticketTransactionApi.getTransactionByUuid(uuid);
+      const res = await ticketTransactionApi.getTransactionByUuid(uuid);
+      return unwrap(res);
     }
-    const transaction = ticketTransactions.find(transaction => transaction.id === uuid);
-    return transaction as TicketTransaction | undefined;
+    return ticketTransactions.find((t) => t.id === uuid) as TicketTransaction | undefined;
+  },
+
+  // 🔹 supaya pemanggilan .getTransaction tidak error
+  async getTransaction(id: string): Promise<TicketTransaction | undefined> {
+    if (USE_REAL_API) {
+      const res = await ticketTransactionApi.getTransaction(id);
+      return unwrap(res);
+    }
+    return ticketTransactions.find((t) => t.id === id) as TicketTransaction | undefined;
+  },
+
+  // opsional: update status/payment_status dsb (backend PATCH /status)
+  async updateTransactionStatus(uuid: string, body: AnyObj): Promise<any> {
+    if (USE_REAL_API) {
+      const res = await ticketTransactionApi.updateTransactionStatus(uuid, body);
+      return unwrap(res);
+    }
+    const t = ticketTransactions.find((x) => x.id === uuid) as AnyObj | undefined;
+    if (t) Object.assign(t, body);
+    return t;
   },
 };
 
-// Admin Service
+/* =========================
+   Admin Service
+   ========================= */
 export const adminService = {
-  // Admin login
-  login: async (email: string, password: string): Promise<User | null> => {
-    if (USE_REAL_API) {
-      return await adminApi.login(email, password);
-    }
-    const admin = admins.find(user => user.email === email);
-    // In a real implementation, we would verify the password hash
-    // For dummy data, we just check if the user exists
-    return admin || null;
+  async login(email: string, password: string): Promise<User | null> {
+    if (USE_REAL_API) return await adminApi.login(email, password);
+    const found = admins.find((u) => u.email === email);
+    return found || null;
   },
 
-  // Get events for check-in
-  getEventsForCheckIn: async (): Promise<Event[]> => {
-    if (USE_REAL_API) {
-      return await adminApi.getEventsForCheckIn();
-    }
-    // Return active events that are currently happening
+  async getEventsForCheckIn(): Promise<Event[]> {
+    if (USE_REAL_API) return await adminApi.getEventsForCheckIn();
     const now = new Date().toISOString();
-    return events.filter(event => 
-      event.status === 'active' && 
-      event.start_date <= now && 
-      event.end_date >= now
-    );
+    return events.filter((e) => e.status === 'active' && e.start_date <= now && e.end_date >= now);
   },
 
-  // Check-in a ticket
-  checkInTicket: async (uuid: string, adminId: number): Promise<boolean> => {
+  async checkInTicket(uuid: string, adminId: number): Promise<boolean> {
     if (USE_REAL_API) {
       await adminApi.checkInTicket(uuid, adminId);
       return true;
     }
-    // Mock implementation for dummy data
-    const transaction = ticketTransactions.find(t => t.id === uuid);
-    if (transaction) {
-      // In a real implementation, we would update the transaction in the database
-      // For dummy data, we just return true to indicate success
-      return true;
-    }
-    return false;
+    const t = ticketTransactions.find((x) => x.id === uuid);
+    return !!t;
   },
 };

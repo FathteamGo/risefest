@@ -23,7 +23,7 @@ export default async function TicketPage({
 
   if (!tx) {
     return (
-      <div className="min-h-[100svh] bg-white py-12">
+      <main className="min-h-screen bg-white py-12">
         <Container>
           <Card className="mx-auto max-w-md p-8 text-center">
             <h1 className="mb-2 text-2xl font-bold">Tiket Tidak Ditemukan</h1>
@@ -35,7 +35,7 @@ export default async function TicketPage({
             </Link>
           </Card>
         </Container>
-      </div>
+      </main>
     );
   }
 
@@ -49,12 +49,12 @@ export default async function TicketPage({
   const ticket = tx.ticket ?? { title: 'Tiket' };
 
   return (
-    <div className="min-h-[100svh] bg-white pb-[calc(88px+env(safe-area-inset-bottom))] sm:pb-10 pt-6">
-      <Container>
-        <div className="mx-auto max-w-2xl">
+    <main className="min-h-screen bg-white">
+      <Container className="py-6 pb-24 md:py-10">
+        <div className="mx-auto w-full max-w-[680px]">
           <TicketCard tx={tx} event={event} ticket={ticket} />
         </div>
       </Container>
-    </div>
+    </main>
   );
 }

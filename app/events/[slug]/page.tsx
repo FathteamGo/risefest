@@ -1,19 +1,19 @@
-import { eventService, eventTicketService } from '@/lib/data-service';
 import Link from 'next/link';
 import Container from '@/components/ui/Container';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import BottomEnrollBar from '@/components/pages/events/BottomEnrollBar';
+import { eventService, eventTicketService } from '@/lib/data-service';
 import type { EventTicket } from '@/types';
 
-export default async function EventDetailPage({ params }: { params: { slug: string } }) {
-  // slug dari route
-  const { slug } = params;
+type Props = { params: Promise<{ slug: string }> };
 
-  // detail acara
+export const dynamic = 'force-dynamic';
+
+export default async function EventDetailPage({ params }: Props) {
+  const { slug } = await params;
+
   const event = await eventService.getEventBySlug(slug);
-
-  // 404 ringkas bila tak ketemu
   if (!event) {
     return (
       <div className="min-h-screen bg-background">
@@ -33,10 +33,8 @@ export default async function EventDetailPage({ params }: { params: { slug: stri
     );
   }
 
-  // daftar tiket acara
   const tickets: EventTicket[] = (await eventTicketService.getTicketsByEventId(event.id)) || [];
 
-  // format tanggal (ID)
   const formatDate = (dateString: string) =>
     new Date(dateString).toLocaleDateString('id-ID', {
       year: 'numeric',
@@ -48,7 +46,6 @@ export default async function EventDetailPage({ params }: { params: { slug: stri
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Banner / hero */}
       <div className="relative h-64 md:h-96">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={event.banner} alt={event.title} className="h-full w-full object-cover" />
@@ -74,10 +71,8 @@ export default async function EventDetailPage({ params }: { params: { slug: stri
         </Container>
       </div>
 
-      {/* Konten utama */}
       <Container className="py-6 md:py-8">
         <div className="flex flex-col gap-6 md:gap-8 lg:flex-row">
-          {/* kiri: deskripsi & tiket */}
           <div className="lg:w-2/3">
             <Card className="mb-6 border border-gray-200 p-6 shadow-sm md:mb-8 md:p-8">
               <h2 className="mb-4 text-2xl font-bold">Deskripsi Acara</h2>
@@ -85,7 +80,6 @@ export default async function EventDetailPage({ params }: { params: { slug: stri
             </Card>
           </div>
 
-          {/* kanan: ringkasan */}
           <div className="lg:w-1/3">
             <Card className="sticky top-6 border border-gray-200 p-6 shadow-sm md:top-8">
               <h3 className="mb-4 text-xl font-bold">Rincian Acara</h3>
@@ -119,11 +113,9 @@ export default async function EventDetailPage({ params }: { params: { slug: stri
           </div>
         </div>
 
-        {/* spacer biar konten gak ketutup bar */}
         <div className="h-20 md:h-0" aria-hidden />
       </Container>
 
-      {/* bilah aksi bawah */}
       <BottomEnrollBar event={event} tickets={tickets} />
     </div>
   );
