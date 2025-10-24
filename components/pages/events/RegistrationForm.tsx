@@ -140,14 +140,36 @@ export default function RegistrationForm({ event, ticket }: { event: Event; tick
 
       await loadSnap();
       (window as any).snap.pay(data.snap_token, {
-        onSuccess: async () => { 
-          setRedirecting(true);
-          await confirmAndPatch(txUuid);
-          router.push(`/ticket/${txUuid}`);
+        onSuccess: async () => {
+          try {
+            await confirmAndPatch(txUuid);
+
+            await fetch(process.env.NEXT_PUBLIC_WA_API_URL!, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': process.env.NEXT_PUBLIC_WA_API_KEY!,
+              },
+              body: JSON.stringify({
+                sender: process.env.NEXT_PUBLIC_WA_SENDER!,
+                to: buyerInfo.phone,
+                message: `Halo ${buyerInfo.name}! 👋\n` +
+                        `Pembayaran kamu untuk *${event.title}* sudah *LUNAS* ✅\n\n` +
+                        `Tiketmu bisa kamu akses di:\n${process.env.NEXT_PUBLIC_BASE_URL}/ticket/${txUuid}\n\nTerima kasih 🙏`,
+              }),
+            }).catch(() => {});
+
+            setRedirecting(true);
+            router.push(`/ticket/${txUuid}`);
+          } catch (e) {
+            console.error(e);
+            router.push(`/ticket/${txUuid}`);
+          }
         },
-        onPending: async () => { 
-          setRedirecting(true);
+        onPending: async () => {
+          // kalau pending juga bisa langsung patch dan redirect
           await confirmAndPatch(txUuid);
+          setRedirecting(true);
           router.push(`/ticket/${txUuid}`);
         },
         onError: () => alert('Pembayaran gagal. Coba lagi.'),

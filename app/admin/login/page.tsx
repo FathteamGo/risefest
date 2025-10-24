@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -16,13 +16,23 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
+  // jika sudah login, lempar ke /admin/events
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const token = localStorage.getItem('adminToken');
+    if (token) router.replace('/admin/events');
+  }, [router]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const admin = admins.find((a: any) => a.email === email);
+    // EXPECT: admins = [{ id: 1, name: 'Admin Booth', email: '...', password: '...' }, ...]
+    const admin = admins.find((a: any) => a.email === email /* && a.password === password */);
 
     if (admin) {
       localStorage.setItem('adminToken', 'dummy-token');
+      localStorage.setItem('adminId', String(admin.id || 1));
+      localStorage.setItem('adminName', String(admin.name || 'Admin Booth'));
       router.push('/admin/events');
     } else {
       setError('Email atau kata sandi tidak valid');
@@ -35,15 +45,10 @@ export default function AdminLoginPage() {
         <div className="mx-auto w-full max-w-md">
           <Card className="border border-gray-200 bg-white p-8 shadow-sm">
             <div className="mb-6 flex flex-col items-center">
-              <img
-                src="/icons/placeholder.jpg"
-                alt="Logo"
-                className="mb-3 h-12 w-12 rounded-md object-cover"
-              />
+              {/* ganti ke <Image> kalau mau */}
+              <img src="/icons/placeholder.jpg" alt="Logo" className="mb-3 h-12 w-12 rounded-md object-cover" />
               <h1 className="text-center text-2xl font-bold">MJFest Admin</h1>
-              <p className="text-center text-sm text-muted-foreground">
-                Masuk untuk mengakses dasbor
-              </p>
+              <p className="text-center text-sm text-muted-foreground">Masuk untuk mengakses dasbor</p>
             </div>
 
             {error ? (
@@ -55,42 +60,22 @@ export default function AdminLoginPage() {
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <label className="mb-1 block text-sm font-medium">Alamat Email</label>
-                <Input
-                  type="email"
-                  value={email}
-                  placeholder="admin@example.com"
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
+                <Input type="email" value={email} placeholder="admin@example.com" onChange={(e) => setEmail(e.target.value)} required />
               </div>
 
               <div>
                 <label className="mb-1 block text-sm font-medium">Kata Sandi</label>
-                <Input
-                  type="password"
-                  value={password}
-                  placeholder="••••••••"
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
+                <Input type="password" value={password} placeholder="••••••••" onChange={(e) => setPassword(e.target.value)} required />
                 <div className="mt-2 flex items-center justify-between">
                   <label className="flex cursor-pointer items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                    />
+                    <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
                     Ingat saya
                   </label>
-                  <a href="#" className="text-sm text-primary hover:underline">
-                    Lupa kata sandi?
-                  </a>
+                  <a href="#" className="text-sm text-primary hover:underline">Lupa kata sandi?</a>
                 </div>
               </div>
 
-              <Button
-                type="submit"
-                className="w-full mt-2 bg-blue-500 hover:bg-blue-600 text-white"
-              >
+              <Button type="submit" className="mt-2 w-full bg-blue-500 text-white hover:bg-blue-600">
                 Masuk
               </Button>
             </form>
