@@ -33,7 +33,7 @@ export default function AdminEventsPage() {
   useEffect(() => {
     (async () => {
       try {
-        const data = (await eventService.getAllEvents()) as EventItem[]; // <-- API/data dummy compatible
+        const data = (await eventService.getAllEvents()) as EventItem[];
         setEvents(data ?? []);
       } catch (e: any) {
         console.error(e);
