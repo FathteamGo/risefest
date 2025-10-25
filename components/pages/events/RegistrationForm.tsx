@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ticketTransactionService } from '@/lib/data-service';
+import { trackEventRegistration } from '@/lib/analytics';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL!;
 const API_KEY  = process.env.NEXT_PUBLIC_API_KEY!;
@@ -100,6 +101,9 @@ export default function RegistrationForm({ event, ticket }: { event: Event; tick
 
     try {
       setSubmitting(true);
+      
+      // Track event registration
+      trackEventRegistration(event.id.toString(), event.title, total);
 
       // buat transaksi di backend (pending)
       const th = ticketHolders[0];

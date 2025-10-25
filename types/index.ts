@@ -26,6 +26,7 @@ export interface Event {
   start_date: string; // ISO date string
   end_date: string; // ISO date string
   status: EventStatus;
+  is_featured: boolean;
   created_at: string; // ISO date string
   updated_at: string; // ISO date string
 }

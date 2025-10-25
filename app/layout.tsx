@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import Layout from '@/components/Layout';
+import { AnalyticsProvider } from '@/components/AnalyticsProvider';
 
 export const metadata: Metadata = {
   title: 'MJFest - Muda Juara Festival',
@@ -15,6 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <AnalyticsProvider />
         <Layout>
           {children}
         </Layout>

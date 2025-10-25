@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import EventCard from '@/components/ui/EventCard';
 import { eventService } from '@/lib/data-service';
 import { Event } from '@/types';
+import { redirect } from "next/navigation";
 
 export default function EventsPage() {
   const [kataKunci, setKataKunci] = useState('');
@@ -21,8 +22,19 @@ export default function EventsPage() {
       try {
         setMemuat(true);
         const data = await eventService.getAllEvents();
-        setEvents(data || []);
-        setTersaring(data || []);
+        
+        // Filter hanya acara yang statusnya = active dan is_featured = true
+        const filteredEvents = data.filter(event => 
+          event.status === 'active' && event.is_featured === true
+        );
+        
+        setEvents(filteredEvents);
+        setTersaring(filteredEvents);
+        
+        // Jika ada acara yang memenuhi kriteria, redirect ke slug pertama
+        if (filteredEvents.length > 0) {
+          redirect(`/events/${filteredEvents[0].slug}`);
+        }
       } finally {
         setMemuat(false);
       }
