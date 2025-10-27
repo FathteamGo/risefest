@@ -1,49 +1,57 @@
 'use client';
 
 import { useEffect, useRef, useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+
 import Container from '@/components/ui/Container';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import EventCard from '@/components/ui/EventCard';
 import { eventService } from '@/lib/data-service';
-import { Event } from '@/types';
-import { redirect } from "next/navigation";
+import type { Event } from '@/types';
 
 export default function EventsPage() {
+  const router = useRouter();
+
   const [kataKunci, setKataKunci] = useState('');
   const [events, setEvents] = useState<Event[]>([]);
   const [tersaring, setTersaring] = useState<Event[]>([]);
   const [memuat, setMemuat] = useState(true);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Ambil semua acara saat halaman dibuka
   useEffect(() => {
+    let mounted = true;
+
     (async () => {
       try {
         setMemuat(true);
-        const data = await eventService.getAllEvents();
-        
-        // Filter hanya acara yang statusnya = active dan is_featured = true
-        const filteredEvents = data.filter(event => 
-          event.status === 'active' && event.is_featured === true
+        const data = await eventService.getAllEvents().catch(() => []) as Event[];
+
+        const filtered = (data || []).filter(
+          (ev) => String(ev.status).toLowerCase() === 'active' && !!ev.is_featured
         );
-        
-        setEvents(filteredEvents);
-        setTersaring(filteredEvents);
-        
-        // Jika ada acara yang memenuhi kriteria, redirect ke slug pertama
-        if (filteredEvents.length > 0) {
-          redirect(`/events/${filteredEvents[0].slug}`);
+
+        if (!mounted) return;
+
+        setEvents(filtered);
+        setTersaring(filtered);
+
+        if (filtered.length > 0 && filtered[0]?.slug) {
+          router.replace(`/events/${filtered[0].slug}`);
         }
       } finally {
-        setMemuat(false);
+        if (mounted) setMemuat(false);
       }
     })();
-  }, []);
 
-  // Debounce pencarian
+    return () => {
+      mounted = false;
+    };
+  }, [router]);
+
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current);
+
     timer.current = setTimeout(async () => {
       const q = kataKunci.trim().toLowerCase();
       setMemuat(true);
@@ -51,17 +59,19 @@ export default function EventsPage() {
         if (!q) {
           setTersaring(events);
         } else {
-          // Coba pakai endpoint pencarian kalau ada
-          const res = await eventService.searchEvents(q).catch(() => null);
-          setTersaring(
-            Array.isArray(res) && res.length
-              ? res
-              : events.filter((ev) =>
-                  [ev.title, ev.description, ev.location]
-                    .filter(Boolean)
-                    .some((v) => String(v).toLowerCase().includes(q))
-                )
-          );
+          const res = (await eventService.searchEvents(q).catch(() => null)) as Event[] | null;
+
+          if (Array.isArray(res) && res.length) {
+            setTersaring(res);
+          } else {
+            setTersaring(
+              events.filter((ev) =>
+                [ev.title, ev.description, ev.location]
+                  .filter(Boolean)
+                  .some((v) => String(v).toLowerCase().includes(q))
+              )
+            );
+          }
         }
       } finally {
         setMemuat(false);
@@ -73,22 +83,17 @@ export default function EventsPage() {
     };
   }, [kataKunci, events]);
 
-  // Angka ringkas di toolbar (total & ditampilkan)
   const infoJumlah = useMemo(() => {
-    const total = events.length;
-    const tampil = tersaring.length;
-    return { total, tampil };
+    return { total: events.length, tampil: tersaring.length };
   }, [events.length, tersaring.length]);
 
   return (
     <div className="min-h-screen bg-background py-8">
       <Container>
-        {/* Header sederhana */}
+        {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight">Semua Acara</h1>
-          <p className="text-sm text-muted-foreground">
-            Jelajahi seluruh acara yang tersedia
-          </p>
+          <p className="text-sm text-muted-foreground">Jelajahi seluruh acara yang tersedia</p>
         </div>
 
         {/* Toolbar: cari + statistik kecil */}
@@ -104,7 +109,8 @@ export default function EventsPage() {
 
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>
-              Menampilkan <span className="font-medium text-foreground">{infoJumlah.tampil}</span> dari{' '}
+              Menampilkan{' '}
+              <span className="font-medium text-foreground">{infoJumlah.tampil}</span> dari{' '}
               <span className="font-medium text-foreground">{infoJumlah.total}</span> acara
             </span>
           </div>
@@ -146,9 +152,7 @@ export default function EventsPage() {
               />
             </svg>
             <h2 className="mb-1 text-lg font-semibold">Acara tidak ditemukan</h2>
-            <p className="text-sm text-muted-foreground">
-              Coba ubah kata kunci pencarian Anda.
-            </p>
+            <p className="text-sm text-muted-foreground">Coba ubah kata kunci pencarian Anda.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">

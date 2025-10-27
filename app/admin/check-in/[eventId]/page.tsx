@@ -12,6 +12,7 @@ const FILE_SCAN_DIV_ID = 'admin-checkin-file-scan-div';
 
 type THtml5Qrcode = any;
 
+/* ---------- utils ---------- */
 function extractUuid(raw: string): string {
   const s = String(raw).trim();
   const m = s.match(/[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}/);
@@ -26,6 +27,66 @@ function normalizeEventId(id: string | number): string {
   return String(id).split(/[?#]/)[0].replace(/:.+$/, '').trim();
 }
 
+/* ---------- tiny sound engine (no assets) ---------- */
+type BeepOpts = { freq?: number; dur?: number; type?: OscillatorType; gain?: number };
+function mkAudio(ctxRef: React.MutableRefObject<AudioContext | null>) {
+  if (!ctxRef.current) {
+    const Ctx = (window.AudioContext || (window as any).webkitAudioContext);
+    if (Ctx) ctxRef.current = new Ctx();
+  }
+  return ctxRef.current;
+}
+async function beep(ctxRef: React.MutableRefObject<AudioContext | null>, o: BeepOpts) {
+  const ctx = mkAudio(ctxRef);
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = o.type ?? 'sine';
+  osc.frequency.value = o.freq ?? 880;
+  gain.gain.value = o.gain ?? 0.08;
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + (o.dur ?? 0.12));
+}
+async function chord(ctxRef: React.MutableRefObject<AudioContext | null>, parts: BeepOpts[]) {
+  const ctx = mkAudio(ctxRef);
+  if (!ctx) return;
+  const base = ctx.currentTime;
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i];
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = p.type ?? 'sine';
+    osc.frequency.value = p.freq ?? 660;
+    g.gain.value = p.gain ?? 0.07;
+    osc.connect(g).connect(ctx.destination);
+    const t0 = base + (i === 0 ? 0 : (parts[i - 1].dur ?? 0.12) * i * 0.8);
+    const dur = p.dur ?? 0.12;
+    osc.start(t0);
+    osc.stop(t0 + dur);
+  }
+}
+// SFX:
+const playSuccess = (ctxRef: React.MutableRefObject<AudioContext | null>) =>
+  chord(ctxRef, [
+    { freq: 660, dur: 0.09, type: 'triangle' },
+    { freq: 990, dur: 0.12, type: 'triangle' },
+  ]);
+const playFail = (ctxRef: React.MutableRefObject<AudioContext | null>) =>
+  chord(ctxRef, [
+    { freq: 220, dur: 0.16, type: 'square', gain: 0.09 },
+    { freq: 180, dur: 0.16, type: 'square', gain: 0.09 },
+  ]);
+const playDuplicate = (ctxRef: React.MutableRefObject<AudioContext | null>) =>
+  chord(ctxRef, [
+    { freq: 520, dur: 0.06, type: 'sine' },
+    { freq: 420, dur: 0.08, type: 'sine' },
+  ]);
+const playClick = (ctxRef: React.MutableRefObject<AudioContext | null>) =>
+  beep(ctxRef, { freq: 700, dur: 0.05, type: 'sine' });
+
+/* ---------- types ---------- */
 type ScanLog = {
   raw: string;
   uuid: string;
@@ -67,6 +128,9 @@ export default function AdminCheckInPage({
   const [memilihFile, setMemilihFile] = React.useState(false);
   const [prosesFile, setProsesFile] = React.useState(false);
 
+  // audio
+  const audioCtxRef = React.useRef<AudioContext | null>(null);
+
   const scanConfig = React.useMemo(
     () => ({
       fps: 10,
@@ -77,6 +141,7 @@ export default function AdminCheckInPage({
     []
   );
 
+  /* ---------- bootstrap ---------- */
   React.useEffect(() => {
     let hidup = true;
     (async () => {
@@ -109,6 +174,7 @@ export default function AdminCheckInPage({
     };
   }, []);
 
+  /* ---------- judul event ---------- */
   React.useEffect(() => {
     let batal = false;
     (async () => {
@@ -125,6 +191,7 @@ export default function AdminCheckInPage({
     return () => { batal = true; };
   }, [safeEventId]);
 
+  /* ---------- auto start ---------- */
   React.useEffect(() => {
     if (!kameraId || jalan || !QrcodeClassRef.current) return;
     void mulaiKamera();
@@ -151,6 +218,10 @@ export default function AdminCheckInPage({
       startingRef.current = true;
       setErrorAtas('');
       await tungguDivSiap();
+
+      // "aktifkan" audio di gesture user pertama
+      mkAudio(audioCtxRef);
+      playClick(audioCtxRef);
 
       if (!QrcodeInstRef.current) {
         QrcodeInstRef.current = new QrcodeClassRef.current(QR_DIV_ID, { verbose: false });
@@ -185,6 +256,7 @@ export default function AdminCheckInPage({
   const pauseKamera  = React.useCallback(async () => { try { if (QrcodeInstRef.current && jalan && !pause) { await QrcodeInstRef.current.pause(true); setPause(true); } } catch {} }, [jalan, pause]);
   const resumeKamera = React.useCallback(async () => { try { if (QrcodeInstRef.current && jalan && pause) { await QrcodeInstRef.current.resume(); setPause(false); } } catch {} }, [jalan, pause]);
 
+  /* ---------- scan & submit ---------- */
   async function kirimCheckIn(raw: string) {
     const uuid = extractUuid(raw);
     const itemAwal: ScanLog = { raw, uuid, ts: Date.now(), ok: null, msg: 'Mencatat…' };
@@ -193,6 +265,7 @@ export default function AdminCheckInPage({
     try {
       setSibukSubmit(true);
 
+      // cek transaksi
       const probe = await fetch(`${API_BASE}/dashboard/ticket-transactions/${uuid}`, {
         headers: { Accept: 'application/json' }, cache: 'no-store',
       });
@@ -201,27 +274,35 @@ export default function AdminCheckInPage({
         const j = await probe.json().catch(() => ({}));
         setLog((prev) => [{ ...itemAwal, ok: false, msg: j?.message || 'Transaksi tidak ditemukan', name: '—' }, ...prev.filter(p => p !== itemAwal)]);
         setInfoTiket(null);
+        playFail(audioCtxRef);
         return;
       }
 
       if (!adminId) {
         setLog((prev) => [{ ...itemAwal, ok: false, msg: 'Admin belum login. Silakan login ulang.', name: '—' }, ...prev.filter(p => p !== itemAwal)]);
+        playFail(audioCtxRef);
         return;
       }
 
+      // check-in
       const resp = await fetch(`${API_BASE}/dashboard/admin/check-in`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ uuid, admin_id: adminId, event_id: safeEventId }), // << gunakan UUID hasil extract
+        body: JSON.stringify({ uuid, admin_id: adminId, event_id: safeEventId }),
       });
 
       const json: any = await resp.json().catch(() => ({}));
       const okRaw = resp.ok && json?.success !== false;
 
-      const isAlready = okRaw && /sudah\s+di-?check-?in/i.test(String(json?.message || ''));
-      const okForUI   = isAlready ? false : okRaw;
-      const msgForUI  = isAlready ? 'Maaf, tiket sudah di-check-in.' : okRaw ? (json?.message || 'Check-in tercatat') : (json?.message || 'Gagal');
+      // sudah check-in?
+      const msgStr = String(json?.message || '');
+      const isAlready =
+        okRaw && (/already\s*checked-?in/i.test(msgStr) || /sudah\s+di-?check-?in/i.test(msgStr));
+      const okForUI  = isAlready ? false : okRaw;
+      const msgForUI = isAlready ? 'Maaf, tiket sudah di-check-in.' :
+                         okRaw ? (json?.message || 'Check-in tercatat') : (json?.message || 'Gagal');
 
+      // fetch detail utk panel kanan + nama
       try {
         const d = await fetch(`${API_BASE}/dashboard/ticket-transactions/${uuid}`, { headers: { Accept: 'application/json' }, cache: 'no-store' });
         const detail = await d.json().catch(() => undefined);
@@ -234,14 +315,24 @@ export default function AdminCheckInPage({
         setLog((prev) => [{ ...itemAwal, ok: okForUI, msg: msgForUI, name: '—' }, ...prev.filter(p => p !== itemAwal)]);
       }
 
-      if (okRaw && !isAlready && 'vibrate' in navigator) { try { (navigator as any).vibrate?.(80); } catch {} }
+      // SFX
+      if (okRaw && !isAlready) {
+        try { (navigator as any).vibrate?.(80); } catch {}
+        playSuccess(audioCtxRef);
+      } else if (isAlready) {
+        playDuplicate(audioCtxRef);
+      } else {
+        playFail(audioCtxRef);
+      }
     } catch (e: any) {
       setLog((prev) => [{ ...itemAwal, ok: false, msg: e?.message || 'Kesalahan jaringan', name: '—' }, ...prev.filter(p => p !== itemAwal)]);
+      playFail(audioCtxRef);
     } finally {
       setSibukSubmit(false);
     }
   }
 
+  /* ---------- file picker ---------- */
   async function bukaFilePicker() {
     if (memilihFile || prosesFile) return;
     setMemilihFile(true);
@@ -329,6 +420,7 @@ export default function AdminCheckInPage({
       await kirimCheckIn(hasil);
     } catch {
       alert('QR tidak terbaca dari gambar.');
+      playFail(audioCtxRef);
     } finally {
       setProsesFile(false);
       setMemilihFile(false);
@@ -343,6 +435,7 @@ export default function AdminCheckInPage({
     try { return new Date(iso).toLocaleString('id-ID'); } catch { return iso ?? '-'; }
   };
 
+  /* ---------- UI ---------- */
   return (
     <div className="min-h-[100svh] bg-white">
       <Container className="py-4 sm:py-8">
@@ -360,6 +453,7 @@ export default function AdminCheckInPage({
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
+          {/* kiri */}
           <Card className="p-3 sm:p-4">
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-base font-semibold sm:text-lg">Pemindai QR</h2>
@@ -381,7 +475,9 @@ export default function AdminCheckInPage({
               </select>
 
               {!jalan ? (
-                <Button onClick={mulaiKamera} disabled={!kameraId || startingRef.current} className="w-full sm:w-auto">Mulai Kamera</Button>
+                <Button onClick={mulaiKamera} disabled={!kameraId || startingRef.current} className="w-full sm:w-auto">
+                  Mulai Kamera
+                </Button>
               ) : (
                 <div className="flex gap-2">
                   {!pause ? (
@@ -424,6 +520,7 @@ export default function AdminCheckInPage({
             </div>
           </Card>
 
+          {/* kanan */}
           <Card className="p-3 sm:p-4">
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-base font-semibold sm:text-lg">Informasi Tiket</h2>

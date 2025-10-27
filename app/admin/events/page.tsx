@@ -1,4 +1,3 @@
-// app/admin/events/page.tsx  (Client Component)
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -6,6 +5,7 @@ import Link from 'next/link';
 import Container from '@/components/ui/Container';
 import { Card } from '@/components/ui/card';
 import { eventService } from '@/lib/data-service';
+import BannerImage from '@/components/BannerImage';
 
 type EventItem = {
   id: number;
@@ -88,19 +88,12 @@ export default function AdminEventsPage() {
                   <Card className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow duration-200 hover:shadow-md">
                     <div className="relative aspect-[16/9] w-full overflow-hidden">
                       <div className="absolute inset-x-0 top-0 h-[3px] bg-blue-200" />
-                      {event.thumbnail || event.banner ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={event.thumbnail ?? event.banner ?? ''}
-                          alt={event.title}
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.01]"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center bg-gray-100 text-xs text-gray-400">
-                          tanpa gambar
-                        </div>
-                      )}
+                      <BannerImage
+                        src={event.thumbnail ?? event.banner ?? ''}
+                        alt={event.title}
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.01]"
+                        fallbackSrc="/icons/placeholder.jpg"
+                      />
                       <div className="absolute right-3 top-3">
                         <StatusBadge status={event.status} />
                       </div>

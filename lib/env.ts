@@ -5,7 +5,7 @@ export const bool = (v: any, def = false) =>
 
 export const ENV = {
   // client-side
-  PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000",
+  PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || "https://risefest.fathforce.com",
   PUBLIC_API_BASE_URL:
     process.env.NEXT_PUBLIC_API_BASE_URL || "https://cmsmj.fathforce.com/api",
   PUBLIC_API_KEY: process.env.NEXT_PUBLIC_API_KEY || "",

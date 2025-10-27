@@ -1,7 +1,7 @@
 'use client';
 
 import type { Event, EventTicket } from '@/types';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -49,8 +49,6 @@ export default function RegistrationForm({ event, ticket }: { event: Event; tick
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  // overlay loading saat redirect/pindah halaman
   const [redirecting, setRedirecting] = useState(false);
 
   const updateBuyerInfo = (field: keyof typeof buyerInfo, value: string) => setBuyerInfo((b) => ({ ...b, [field]: value }));
@@ -67,7 +65,21 @@ export default function RegistrationForm({ event, ticket }: { event: Event; tick
   const isHoldersFilled = ticketHolders.every((h) => h.name && h.email && h.phone);
   const canSubmit = Boolean(isBuyerFilled && isHoldersFilled && !submitting);
 
-  // cek status ke Midtrans, lalu PATCH ke Laravel bila sudah paid
+  const resetSnapArtifacts = useCallback(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    ['overflow', 'paddingRight', 'marginRight', 'position', 'height', 'width'].forEach((k) => {
+      // @ts-ignore
+      html.style[k] = '';
+      // @ts-ignore
+      body.style[k] = '';
+    });
+    ['snap-body', 'snap-open', 'modal-open', 'swal2-shown'].forEach((cls) => {
+      html.classList.remove(cls);
+      body.classList.remove(cls);
+    });
+  }, []);
+
   async function confirmAndPatch(txId: string) {
     const orderId = `TIX-${txId}`;
 
@@ -101,11 +113,9 @@ export default function RegistrationForm({ event, ticket }: { event: Event; tick
 
     try {
       setSubmitting(true);
-      
-      // Track event registration
+
       trackEventRegistration(event.id.toString(), event.title, total);
 
-      // buat transaksi di backend (pending)
       const th = ticketHolders[0];
       const created = await ticketTransactionService.createTransaction({
         event_id: event.id,
@@ -117,14 +127,13 @@ export default function RegistrationForm({ event, ticket }: { event: Event; tick
         buyer_phone: buyerInfo.phone,
         buyer_email: buyerInfo.email,
         buyer_city: buyerInfo.city,
-        payment_method: 'snap', // metode midtrans
+        payment_method: 'snap',
         total_amount: total,
       });
 
       const txUuid: string = created?.transaction?.id || created?.id || created?.uuid;
       if (!txUuid) throw new Error('Gagal membuat transaksi (UUID kosong).');
 
-      // prefetch halaman tiket
       router.prefetch(`/ticket/${txUuid}`);
 
       const resp = await fetch('/api/midtrans/snap', {
@@ -164,34 +173,45 @@ export default function RegistrationForm({ event, ticket }: { event: Event; tick
             }).catch(() => {});
 
             setRedirecting(true);
+            resetSnapArtifacts();
             router.push(`/ticket/${txUuid}`);
-          } catch (e) {
-            console.error(e);
+          } catch {
+            resetSnapArtifacts();
             router.push(`/ticket/${txUuid}`);
           }
         },
         onPending: async () => {
-          // kalau pending juga bisa langsung patch dan redirect
           await confirmAndPatch(txUuid);
           setRedirecting(true);
+          resetSnapArtifacts();
           router.push(`/ticket/${txUuid}`);
         },
-        onError: () => alert('Pembayaran gagal. Coba lagi.'),
-        onClose: () => {},
+        onError: () => {
+          alert('Pembayaran gagal. Coba lagi.');
+          resetSnapArtifacts();
+        },
+        onClose: () => {
+          // pengguna menutup popup → kembalikan style/body supaya layout nggak geser
+          resetSnapArtifacts();
+        },
       });
 
     } catch (err: any) {
       setErrorMsg(err?.message || 'Terjadi kesalahan saat membuat transaksi.');
     } finally {
       setSubmitting(false);
+      resetSnapArtifacts();
     }
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white overflow-x-hidden">
       <Container className="py-8 md:py-10">
         <div className="mb-6">
-          <Link href={`/events/${event.slug}`} className="inline-flex items-center text-sm text-blue-600 hover:underline">
+          <Link
+            href={`/events/${event.slug}`}
+            className="inline-flex items-center text-sm text-blue-600 hover:text-blue-700 hover:underline"
+          >
             <svg className="mr-2 h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M12.293 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L8.414 10l3.879 3.879a1 1 0 010 1.414z" clipRule="evenodd" />
             </svg>
@@ -204,46 +224,74 @@ export default function RegistrationForm({ event, ticket }: { event: Event; tick
           <p className="mt-1 text-sm text-muted-foreground">Lengkapi data di bawah untuk menyelesaikan pendaftaran.</p>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-6 lg:grid-cols-[1.2fr_0.8fr]">
           {/* left form */}
           <form id="regForm" onSubmit={handleSubmit} className="space-y-6">
             <Card className="p-5 md:p-6">
               <h2 className="mb-4 text-lg font-semibold">Informasi Pembeli</h2>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div><label className="mb-1 block text-sm font-medium">Nama Lengkap *</label>
-                  <Input value={buyerInfo.name} onChange={(e) => updateBuyerInfo('name', e.target.value)} required /></div>
-                <div><label className="mb-1 block text-sm font-medium">Alamat Email *</label>
-                  <Input type="email" value={buyerInfo.email} onChange={(e) => updateBuyerInfo('email', e.target.value)} required /></div>
-                <div><label className="mb-1 block text-sm font-medium">Nomor Telepon *</label>
-                  <Input value={buyerInfo.phone} onChange={(e) => updateBuyerInfo('phone', e.target.value)} required /></div>
-                <div><label className="mb-1 block text-sm font-medium">Asal Kota *</label>
-                  <Input placeholder="Contoh: Jakarta" value={buyerInfo.city} onChange={(e) => updateBuyerInfo('city', e.target.value)} required /></div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Nama Lengkap *</label>
+                  <Input value={buyerInfo.name} onChange={(e) => updateBuyerInfo('name', e.target.value)} required />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Alamat Email *</label>
+                  <Input type="email" value={buyerInfo.email} onChange={(e) => updateBuyerInfo('email', e.target.value)} required />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Nomor Telepon *</label>
+                  <Input value={buyerInfo.phone} onChange={(e) => updateBuyerInfo('phone', e.target.value)} required />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Asal Kota *</label>
+                  <Input placeholder="Contoh: Jakarta" value={buyerInfo.city} onChange={(e) => updateBuyerInfo('city', e.target.value)} required />
+                </div>
               </div>
             </Card>
 
             <Card className="p-5 md:p-6">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <h2 className="max-w-full break-words text-lg font-semibold">Informasi Pemegang Tiket</h2>
-                <Button type="button" variant="secondary" onClick={addTicketHolder}>+ Tambah Pemegang</Button>
+                <Button
+                  type="button"
+                  onClick={addTicketHolder}
+                  className="h-10 rounded-full bg-white px-4 text-sm font-semibold text-blue-600 ring-1 ring-blue-300 transition hover:bg-blue-50"
+                >
+                  + Tambah Pemegang
+                </Button>
               </div>
 
               <div className="space-y-4">
                 {ticketHolders.map((h, i) => (
                   <div key={i} className="rounded-lg border border-gray-200 p-4">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                      <p className="max-w-[70%] truncate text-sm font-medium sm:max-w-none sm:truncate-0">Pemegang Tiket {i + 1}</p>
+                      <p className="max-w-[70%] truncate text-sm font-medium sm:max-w-none sm:truncate-0">
+                        Pemegang Tiket {i + 1}
+                      </p>
                       {ticketHolders.length > 1 && (
-                        <button type="button" onClick={() => removeTicketHolder(i)} className="text-xs font-medium text-red-600 hover:underline">Hapus</button>
+                        <button
+                          type="button"
+                          onClick={() => removeTicketHolder(i)}
+                          className="rounded-full px-3 py-1 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
+                        >
+                          Hapus
+                        </button>
                       )}
                     </div>
 
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                      <div><label className="mb-1 block text-sm font-medium">Nama Lengkap *</label>
-                        <Input value={h.name} onChange={(e) => updateTicketHolder(i, 'name', e.target.value)} required /></div>
-                      <div><label className="mb-1 block text-sm font-medium">Alamat Email *</label>
-                        <Input type="email" value={h.email} onChange={(e) => updateTicketHolder(i, 'email', e.target.value)} required /></div>
-                      <div><label className="mb-1 block text-sm font-medium">Nomor Telepon *</label>
-                        <Input value={h.phone} onChange={(e) => updateTicketHolder(i, 'phone', e.target.value)} required /></div>
+                      <div>
+                        <label className="mb-1 block text-sm font-medium">Nama Lengkap *</label>
+                        <Input value={h.name} onChange={(e) => updateTicketHolder(i, 'name', e.target.value)} required />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm font-medium">Alamat Email *</label>
+                        <Input type="email" value={h.email} onChange={(e) => updateTicketHolder(i, 'email', e.target.value)} required />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm font-medium">Nomor Telepon *</label>
+                        <Input value={h.phone} onChange={(e) => updateTicketHolder(i, 'phone', e.target.value)} required />
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -253,7 +301,11 @@ export default function RegistrationForm({ event, ticket }: { event: Event; tick
             {errorMsg ? <p className="text-sm text-red-600">{errorMsg}</p> : null}
 
             <div className="hidden items-center justify-end md:flex">
-              <Button type="submit" variant="secondary" className="h-11 px-6" disabled={!canSubmit}>
+              <Button
+                type="submit"
+                className="h-11 rounded-full bg-blue-600 px-6 font-semibold text-white shadow-md transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                disabled={!canSubmit}
+              >
                 {submitting ? 'Memproses…' : 'Lanjutkan Pembayaran'}
               </Button>
             </div>
@@ -300,20 +352,34 @@ export default function RegistrationForm({ event, ticket }: { event: Event; tick
         </div>
       </Container>
 
+      {/* spacer supaya bar mobile tidak menutupi konten */}
+      <div className="h-[84px] md:hidden" />
+
       {/* mobile action bar */}
-      <div className="fixed inset-x-0 bottom-0 z-40 bg-white/95 shadow-[0_-6px_20px_rgba(0,0,0,0.06)] md:hidden">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
-          <div>
+      <div
+        className="
+          fixed inset-x-0 bottom-0 z-40
+          border-t border-gray-200 bg-white/95 backdrop-blur
+          md:hidden
+        "
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4 py-3">
+          <div className="min-w-0">
             <div className="text-xs text-muted-foreground">Total</div>
-            <div className="text-lg font-bold">{rupiah(total)}</div>
+            <div className="truncate text-lg font-bold">{rupiah(total)}</div>
           </div>
-          <Button form="regForm" type="submit" variant="secondary" className="h-11 flex-1" disabled={!canSubmit}>
+          <Button
+            form="regForm"
+            type="submit"
+            className="h-11 flex-1 rounded-full bg-blue-600 font-semibold text-white shadow-md transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+            disabled={!canSubmit}
+          >
             {submitting ? 'Memproses…' : 'Lanjutkan Pembayaran'}
           </Button>
         </div>
       </div>
 
-      {/* overlay loading saat redirect */}
       {redirecting && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-white/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-3 text-gray-700">

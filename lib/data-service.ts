@@ -107,7 +107,7 @@ export const ticketTransactionService = {
 
     // Simulasi snap / VA
     const baseUrl =
-      process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+      process.env.NEXT_PUBLIC_BASE_URL || 'https://risefest.fathforce.com';
 
     if (['gopay', 'qris'].includes(String(data.payment_method))) {
       return {
