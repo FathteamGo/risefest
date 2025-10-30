@@ -47,7 +47,7 @@ export default function AdminLoginPage() {
             <div className="mb-6 flex flex-col items-center">
               {/* ganti ke <Image> kalau mau */}
               <img src="/icons/placeholder.jpg" alt="Logo" className="mb-3 h-12 w-12 rounded-md object-cover" />
-              <h1 className="text-center text-2xl font-bold">MJFest Admin</h1>
+              <h1 className="text-center text-2xl font-bold">RISEfest Admin</h1>
               <p className="text-center text-sm text-muted-foreground">Masuk untuk mengakses dasbor</p>
             </div>
 
@@ -89,7 +89,7 @@ export default function AdminLoginPage() {
           </Card>
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
-            © {new Date().getFullYear()} MJFest • Konsol Admin
+            © {new Date().getFullYear()} RISEfest • Konsol Admin
           </p>
         </div>
       </Container>

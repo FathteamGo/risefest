@@ -16,10 +16,26 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL!;
 const API_KEY  = process.env.NEXT_PUBLIC_API_KEY!;
 
 const rupiah = (n: number) => `IDR ${Number(n || 0).toLocaleString('id-ID')}`;
-const fmtDateTime = (iso: string) =>
-  new Date(iso).toLocaleString('id-ID', {
-    day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
+const fmtDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+const fmtTime = (iso: string) =>
+  new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+const fmtDateRange = (startISO?: string, endISO?: string) => {
+  if (!startISO) return '-';
+  if (!endISO) return `${fmtDate(startISO)} pukul ${fmtTime(startISO)}`;
+
+  const s = new Date(startISO);
+  const e = new Date(endISO);
+  const sameDay = s.getFullYear() === e.getFullYear()
+    && s.getMonth() === e.getMonth()
+    && s.getDate() === e.getDate();
+
+  if (sameDay) {
+    return `${fmtDate(startISO)} pukul ${fmtTime(startISO)} - ${fmtTime(endISO)}`;
+  }
+  return `${fmtDate(startISO)} ${fmtTime(startISO)} - ${fmtDate(endISO)} ${fmtTime(endISO)}`;
+};
 
 function loadSnap() {
   return new Promise<void>((resolve, reject) => {
@@ -191,7 +207,6 @@ export default function RegistrationForm({ event, ticket }: { event: Event; tick
           resetSnapArtifacts();
         },
         onClose: () => {
-          // pengguna menutup popup → kembalikan style/body supaya layout nggak geser
           resetSnapArtifacts();
         },
       });
@@ -205,100 +220,163 @@ export default function RegistrationForm({ event, ticket }: { event: Event; tick
   };
 
   return (
-    <div className="min-h-screen bg-white overflow-x-hidden">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50/60 via-white to-white">
+      {/* HEADER */}
+      <div className="border-b bg-white/70 backdrop-blur-sm">
+        <Container className="py-6">
+          <div className="flex flex-wrap items-center gap-4">
+            <Link
+              href={`/events/${event.slug}`}
+              className="inline-flex items-center text-sm font-medium text-blue-600 transition hover:text-blue-700 hover:underline"
+            >
+              <svg className="mr-2 h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M12.293 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L8.414 10l3.879 3.879a1 1 0 010 1.414z" clipRule="evenodd" />
+              </svg>
+              Kembali ke Acara
+            </Link>
+          </div>
+
+          <div className="mt-4">
+            <h1 className="text-2xl font-bold leading-tight tracking-tight md:text-3xl">
+              Daftar untuk <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{event.title}</span>
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Lengkapi data di bawah untuk menyelesaikan pendaftaran kamu.
+            </p>
+          </div>
+        </Container>
+      </div>
+
+      {/* CONTENT */}
       <Container className="py-8 md:py-10">
-        <div className="mb-6">
-          <Link
-            href={`/events/${event.slug}`}
-            className="inline-flex items-center text-sm text-blue-600 hover:text-blue-700 hover:underline"
-          >
-            <svg className="mr-2 h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M12.293 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L8.414 10l3.879 3.879a1 1 0 010 1.414z" clipRule="evenodd" />
-            </svg>
-            Kembali ke Acara
-          </Link>
-        </div>
-
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Daftar untuk {event.title}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Lengkapi data di bawah untuk menyelesaikan pendaftaran.</p>
-        </div>
-
-        <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          {/* left form */}
+        <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+          {/* LEFT: FORM */}
           <form id="regForm" onSubmit={handleSubmit} className="space-y-6">
-            <Card className="p-5 md:p-6">
-              <h2 className="mb-4 text-lg font-semibold">Informasi Pembeli</h2>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Nama Lengkap *</label>
-                  <Input value={buyerInfo.name} onChange={(e) => updateBuyerInfo('name', e.target.value)} required />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Alamat Email *</label>
-                  <Input type="email" value={buyerInfo.email} onChange={(e) => updateBuyerInfo('email', e.target.value)} required />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Nomor Telepon *</label>
-                  <Input value={buyerInfo.phone} onChange={(e) => updateBuyerInfo('phone', e.target.value)} required />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Asal Kota *</label>
-                  <Input placeholder="Contoh: Jakarta" value={buyerInfo.city} onChange={(e) => updateBuyerInfo('city', e.target.value)} required />
+            <Card className="overflow-hidden border-slate-200 p-0 shadow-sm">
+              <div className="border-b bg-slate-50/70 px-5 py-4 md:px-6">
+                <h2 className="text-base font-semibold">Informasi Pembeli</h2>
+                <p className="mt-1 text-xs text-muted-foreground">Data ini digunakan untuk invoice & notifikasi.</p>
+              </div>
+              <div className="px-5 py-5 md:px-6 md:py-6">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">Nama Lengkap *</label>
+                    <Input
+                      placeholder="Nama sesuai KTP"
+                      value={buyerInfo.name}
+                      onChange={(e) => updateBuyerInfo('name', e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">Alamat Email *</label>
+                    <Input
+                      type="email"
+                      placeholder="nama@email.com"
+                      value={buyerInfo.email}
+                      onChange={(e) => updateBuyerInfo('email', e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">Nomor Telepon *</label>
+                    <Input
+                      inputMode="tel"
+                      placeholder="08xxxxxxxxxx"
+                      value={buyerInfo.phone}
+                      onChange={(e) => updateBuyerInfo('phone', e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">Asal Kota *</label>
+                    <Input
+                      placeholder="Contoh: Jakarta"
+                      value={buyerInfo.city}
+                      onChange={(e) => updateBuyerInfo('city', e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
               </div>
             </Card>
 
-            <Card className="p-5 md:p-6">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <h2 className="max-w-full break-words text-lg font-semibold">Informasi Pemegang Tiket</h2>
+            <Card className="overflow-hidden border-slate-200 p-0 shadow-sm">
+              <div className="flex items-center justify-between border-b bg-slate-50/70 px-5 py-4 md:px-6">
+                <div>
+                  <h2 className="text-base font-semibold">Informasi Pemegang Tiket</h2>
+                  <p className="mt-1 text-xs text-muted-foreground">Nama akan muncul pada tiket & QR check-in.</p>
+                </div>
                 <Button
                   type="button"
                   onClick={addTicketHolder}
-                  className="h-10 rounded-full bg-white px-4 text-sm font-semibold text-blue-600 ring-1 ring-blue-300 transition hover:bg-blue-50"
+                  className="h-9 rounded-full bg-white px-4 text-xs font-semibold text-blue-600 ring-1 ring-blue-200 transition hover:bg-blue-50"
                 >
                   + Tambah Pemegang
                 </Button>
               </div>
 
-              <div className="space-y-4">
-                {ticketHolders.map((h, i) => (
-                  <div key={i} className="rounded-lg border border-gray-200 p-4">
-                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                      <p className="max-w-[70%] truncate text-sm font-medium sm:max-w-none sm:truncate-0">
-                        Pemegang Tiket {i + 1}
-                      </p>
-                      {ticketHolders.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeTicketHolder(i)}
-                          className="rounded-full px-3 py-1 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
-                        >
-                          Hapus
-                        </button>
-                      )}
-                    </div>
+              <div className="px-5 py-5 md:px-6 md:py-6">
+                <div className="space-y-4">
+                  {ticketHolders.map((h, i) => (
+                    <div key={i} className="rounded-xl border border-slate-200 bg-white/60 p-4 shadow-[0_1px_0_rgba(15,23,42,0.03)]">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <p className="max-w-[70%] truncate text-sm font-medium sm:max-w-none sm:truncate-0">
+                          Pemegang Tiket {i + 1}
+                        </p>
+                        {ticketHolders.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeTicketHolder(i)}
+                            className="rounded-full px-3 py-1 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
+                          >
+                            Hapus
+                          </button>
+                        )}
+                      </div>
 
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                      <div>
-                        <label className="mb-1 block text-sm font-medium">Nama Lengkap *</label>
-                        <Input value={h.name} onChange={(e) => updateTicketHolder(i, 'name', e.target.value)} required />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-sm font-medium">Alamat Email *</label>
-                        <Input type="email" value={h.email} onChange={(e) => updateTicketHolder(i, 'email', e.target.value)} required />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-sm font-medium">Nomor Telepon *</label>
-                        <Input value={h.phone} onChange={(e) => updateTicketHolder(i, 'phone', e.target.value)} required />
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        <div>
+                          <label className="mb-1 block text-sm font-medium">Nama Lengkap *</label>
+                          <Input
+                            placeholder="Nama lengkap"
+                            value={h.name}
+                            onChange={(e) => updateTicketHolder(i, 'name', e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-sm font-medium">Alamat Email *</label>
+                          <Input
+                            type="email"
+                            placeholder="email@contoh.com"
+                            value={h.email}
+                            onChange={(e) => updateTicketHolder(i, 'email', e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-sm font-medium">Nomor Telepon *</label>
+                          <Input
+                            inputMode="tel"
+                            placeholder="08xxxxxxxxxx"
+                            value={h.phone}
+                            onChange={(e) => updateTicketHolder(i, 'phone', e.target.value)}
+                            required
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </Card>
 
-            {errorMsg ? <p className="text-sm text-red-600">{errorMsg}</p> : null}
+            {errorMsg ? (
+              <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {errorMsg}
+              </div>
+            ) : null}
 
             <div className="hidden items-center justify-end md:flex">
               <Button
@@ -311,39 +389,55 @@ export default function RegistrationForm({ event, ticket }: { event: Event; tick
             </div>
           </form>
 
-          {/* right summary */}
+          {/* RIGHT: SUMMARY */}
           <aside className="lg:sticky lg:top-6">
-            <Card className="p-5 md:p-6">
-              <h3 className="text-base font-semibold">Ringkasan Pembayaran</h3>
-              <div className="mt-4 divide-y rounded-lg border">
-                <div className="grid grid-cols-2 gap-3 p-4 text-sm">
-                  <div className="text-muted-foreground">Tiket</div>
-                  <div className="text-right font-medium">{ticket.title} × {ticketHolders.length}</div>
-                  <div className="text-muted-foreground">Subtotal</div>
-                  <div className="text-right font-medium">{rupiah(subtotal)}</div>
-                  <div className="text-muted-foreground">Biaya Admin</div>
-                  <div className="text-right font-medium">{rupiah(adminFee)}</div>
-                </div>
-                <div className="flex items-center justify-between p-4">
-                  <span className="text-sm font-semibold">Total</span>
-                  <span className="text-lg font-bold text-blue-600">{rupiah(total)}</span>
-                </div>
+            <Card className="overflow-hidden border-slate-200 shadow-sm">
+              <div className="border-b bg-slate-50/70 px-5 py-4 md:px-6">
+                <h3 className="text-base font-semibold">Ringkasan Pembayaran</h3>
               </div>
 
-              <div className="mt-6">
-                <h4 className="mb-2 text-sm font-semibold">Detail Acara</h4>
-                <div className="space-y-2 text-sm text-muted-foreground">
-                  <p className="flex items-center">
-                    <svg className="mr-2 h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" /></svg>
-                    {event.location}
-                  </p>
-                  <p className="flex items-center">
-                    <svg className="mr-2 h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" /></svg>
-                    {fmtDateTime(event.start_date)}
-                  </p>
-                  <p className="flex items-center">
-                    <svg className="mr-2 h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" /></svg>
-                    {fmtDateTime(event.end_date)}
+              <div className="px-5 py-5 md:px-6 md:py-6 space-y-6">
+                <div className="rounded-2xl border border-slate-200 overflow-hidden">
+                  <div className="divide-y text-sm">
+                    <div className="grid grid-cols-2 gap-3 p-4">
+                      <div className="text-muted-foreground">Tiket</div>
+                      <div className="text-right font-medium">{ticket.title} × {ticketHolders.length}</div>
+
+                      <div className="text-muted-foreground">Subtotal</div>
+                      <div className="text-right font-medium">{rupiah(subtotal)}</div>
+
+                      <div className="text-muted-foreground">Biaya Admin</div>
+                      <div className="text-right font-medium">{rupiah(adminFee)}</div>
+                    </div>
+
+                    <div className="flex items-center justify-between bg-blue-50 px-4 py-3">
+                      <span className="text-sm font-semibold text-blue-700">Total</span>
+                      <span className="text-lg font-bold text-blue-700">{rupiah(total)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="mb-2 text-sm font-semibold">Detail Acara</h4>
+                  <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 text-sm text-muted-foreground">
+                    <p className="flex items-center">
+                      <svg className="mr-2 h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                      </svg>
+                      {event.location}
+                    </p>
+                    <p className="flex items-start">
+                      <svg className="mr-2 mt-0.5 h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {fmtDateRange(event.start_date, event.end_date)}
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mt-3 text-center text-[11px] leading-relaxed text-muted-foreground">
+                    Dengan melanjutkan, Anda menyetujui <span className="underline">Syarat & Ketentuan</span> serta <span className="underline">Kebijakan Privasi</span>.
                   </p>
                 </div>
               </div>
@@ -353,7 +447,7 @@ export default function RegistrationForm({ event, ticket }: { event: Event; tick
       </Container>
 
       {/* spacer supaya bar mobile tidak menutupi konten */}
-      <div className="h-[84px] md:hidden" />
+      <div className="h-[88px] md:hidden" />
 
       {/* mobile action bar */}
       <div

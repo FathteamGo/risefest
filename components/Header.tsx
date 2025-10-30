@@ -50,7 +50,7 @@ export default function Header() {
             <span className="relative inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-md ring-1 ring-slate-200 shadow-sm">
               <Image
                 src="/icons/placeholder.jpg"
-                alt="MJFest Logo" 
+                alt="RISEfest Logo" 
                 width={80}
                 height={80}
                 className="object-contain"
@@ -59,7 +59,7 @@ export default function Header() {
 
             <div className="leading-tight">
               <p className="text-[15px] font-semibold tracking-tight text-slate-900">
-                {isAdmin ? 'MJFest Admin' : 'MJFest'}
+                {isAdmin ? 'RISEfest Admin' : 'RISEfest'}
               </p>
               {isAdmin ? (
                 <p className="text-[11px] text-slate-500">Konsol Admin</p>

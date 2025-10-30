@@ -5,7 +5,7 @@ import Layout from "@/components/Layout";
 import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 
 export const metadata: Metadata = {
-  title: "MJFest - Muda Juara Festival",
+  title: "RISEfest - Muda Juara Festival",
   description: "Event booking and ticketing system",
 };
 
