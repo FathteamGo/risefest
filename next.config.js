@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
+  experimental: { forceSwcTransforms: true },
 
   webpack(config) {
     config.module.rules.push({

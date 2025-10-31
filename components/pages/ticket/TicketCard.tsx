@@ -33,13 +33,12 @@ export default function TicketCard({
   const qrValue = `${baseUrl}/ticket/${tx.id}`;
   const isUsed = String(tx.status || '').toLowerCase() === 'used';
 
-  // === FIX HYDRATION ===
-  // SSR & render pertama client sama (220), lalu disesuaikan setelah mount.
-  const [qrSize, setQrSize] = useState<number>(220);
+  // QR responsive (screen)
+  const [qrSize, setQrSize] = useState<number>(260);
   useEffect(() => {
     const calc = () => {
-      const w = Math.min(window.innerWidth, 480);
-      setQrSize(Math.max(180, Math.min(260, Math.floor(w * 0.58))));
+      const w = Math.min(window.innerWidth, 560);
+      setQrSize(Math.max(220, Math.min(300, Math.floor(w * 0.6))));
     };
     calc();
     window.addEventListener('resize', calc);
@@ -48,15 +47,11 @@ export default function TicketCard({
 
   return (
     <>
-      <div className="mb-24 sm:mb-0">
-        <Card
-          id="print-area"
-          className="relative border border-gray-200 bg-white p-4 sm:p-6 md:rounded-2xl md:p-8"
-        >
+      {/* ===== SCREEN ===== */}
+      <div className="mb-24 sm:mb-0 print:hidden">
+        <Card className="relative border border-gray-200 bg-white p-4 sm:p-6 md:rounded-2xl md:p-8">
           <div className="mb-4 text-center">
-            <h1 className="text-lg font-bold sm:text-xl md:text-2xl">
-              Tiket Event Anda
-            </h1>
+            <h1 className="text-lg font-bold sm:text-xl md:text-2xl">Tiket Event Anda</h1>
             <p className="text-xs text-gray-600 sm:text-sm">
               Simpan tiket ini &amp; tunjukkan saat registrasi masuk.
             </p>
@@ -77,30 +72,24 @@ export default function TicketCard({
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div>
-                <h3 className="mb-2 text-sm font-semibold text-gray-700">
-                  Pemegang Tiket
-                </h3>
+                <h3 className="mb-2 text-sm font-semibold text-gray-700">Pemegang Tiket</h3>
                 <p className="text-gray-800">{tx.ticket_holder_name}</p>
                 <p className="text-gray-600">{tx.ticket_holder_email}</p>
                 <p className="text-gray-600">{tx.ticket_holder_phone}</p>
               </div>
               <div>
-                <h3 className="mb-2 text-sm font-semibold text-gray-700">
-                  Detail Tiket
-                </h3>
+                <h3 className="mb-2 text-sm font-semibold text-gray-700">Detail Tiket</h3>
                 <p className="text-gray-800">{ticket.title}</p>
                 <p className="font-bold text-gray-800">{fmtIDR(tx.total_amount)}</p>
                 <p className="break-all text-gray-600">Kode Transaksi: {tx.id}</p>
                 {tx.checked_in_at && (
                   <p className="mt-2 text-xs text-gray-600">
-                    Digunakan pada {fmtDateID(tx.checked_in_at)} oleh{' '}
-                    {tx.checked_in_by || '-'}
+                    Digunakan pada {fmtDateID(tx.checked_in_at)} oleh {tx.checked_in_by || '-'}
                   </p>
                 )}
               </div>
             </div>
 
-            {/* QR — watermark DI DALAM kotak QR, QR tetap aktif (tidak diblur / tidak ditutup layer) */}
             <div className="mt-6 text-center">
               <div className="relative mx-auto inline-block rounded-lg border border-gray-200 bg-white p-3">
                 <QRCodeSVG value={qrValue} size={qrSize} level="H" />
@@ -121,8 +110,7 @@ export default function TicketCard({
           </div>
         </Card>
 
-        {/* Tombol bawah */}
-        <div className="no-print mt-6 hidden justify-center gap-3 sm:flex">
+        <div className="mt-6 hidden justify-center gap-3 sm:flex">
           <Button variant="secondary" className="h-11 px-6" onClick={() => window.print()}>
             Cetak Tiket
           </Button>
@@ -134,42 +122,136 @@ export default function TicketCard({
         </div>
       </div>
 
-      {/* Bottom bar mobile */}
-      <div
-        className="no-print fixed inset-x-0 bottom-0 z-50 border-t bg-white px-4 py-3 shadow-[0_-6px_12px_rgba(0,0,0,0.06)] sm:hidden"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
-      >
-        <div className="mx-auto flex max-w-[680px] gap-2">
-          <Button variant="secondary" className="h-11 flex-1" onClick={() => window.print()}>
-            Cetak
-          </Button>
-          {event?.slug ? (
-            <Link href={`/events/${event.slug}`} className="flex-1">
-              <Button variant="secondary" className="h-11 w-full">Kembali</Button>
-            </Link>
-          ) : null}
+      {/* ===== PRINT (A4, 1 sheet) ===== */}
+      <div id="print-only" className="hidden print:block">
+        <div className="sheet">
+          <div className="head">
+            <div className="title">Tiket Event Anda</div>
+            <div className="sub">Simpan tiket ini & tunjukkan saat registrasi masuk.</div>
+          </div>
+
+          <div className="card">
+            <div className="event">
+              <div className="event-title">{event.title}</div>
+              <div className="event-sub">
+                {fmtDateID(event.start_date)} — {fmtDateID(event.end_date)}
+              </div>
+              <div className="event-sub">{event.location}</div>
+            </div>
+
+            <div className="cols">
+              <div className="col">
+                <div className="sec">Pemegang Tiket</div>
+                <div className="text">{tx.ticket_holder_name}</div>
+                <div className="mute">{tx.ticket_holder_email}</div>
+                <div className="mute">{tx.ticket_holder_phone}</div>
+              </div>
+              <div className="col">
+                <div className="sec">Detail Tiket</div>
+                <div className="text">{ticket.title}</div>
+                <div className="amt">{fmtIDR(tx.total_amount)}</div>
+                <div className="mute break-all">Kode Transaksi: {tx.id}</div>
+                {tx.checked_in_at && (
+                  <div className="mute">
+                    Digunakan pada {fmtDateID(tx.checked_in_at)} oleh {tx.checked_in_by || '-'}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="qr-wrap">
+              <div className="qr-box">
+                <QRCodeSVG value={qrValue} size={260} level="H" />
+                {isUsed && <div className="used">SUDAH DIGUNAKAN</div>}
+              </div>
+              <div className="qr-hint">
+                {isUsed
+                  ? 'Tiket sudah digunakan. QR ditampilkan sebagai referensi.'
+                  : 'Tunjukkan & pindai QR ini saat registrasi/check-in.'}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Print styles */}
+      {/* ===== PRINT STYLES ===== */}
       <style jsx global>{`
-        @page { size: A4; margin: 12mm; }
-        @media print {
-          body * { visibility: hidden !important; }
-          #print-area, #print-area * { visibility: visible !important; }
-          #print-area {
-            position: absolute !important;
-            left: 0; top: 0;
-            width: 100% !important;
-            box-shadow: none !important;
-            border: none !important;
+        /* Kertas A4 tanpa header/footer */
+        @page { size: A4 portrait; margin: 0; }
+
+        /* Lembar A4 tunggal — ukurannya DIKUNCI & tidak boleh meluber */
+        .sheet{
+          width: 210mm;
+          height: 297mm;
+          padding: 12mm 14mm;
+          box-sizing: border-box;
+          display: grid;
+          grid-template-rows: auto 1fr;
+          row-gap: 6mm;
+          overflow: clip;
+          page-break-after: avoid;
+          break-after: avoid;
+        }
+
+        .head{ text-align:center; }
+        .title{ font-weight:800; font-size:18pt; line-height:1.2; }
+        .sub{ color:#64748b; font-size:10pt; margin-top:2mm; }
+
+        .card{
+          border:.3mm solid #e5e7eb;
+          border-radius:5mm;
+          padding:8mm;
+          display:grid;
+          grid-auto-rows:max-content;
+          row-gap:6mm;
+          page-break-inside: avoid;
+        }
+
+        .event-title{ font-weight:700; font-size:13pt; }
+        .event-sub{ color:#475569; font-size:10pt; }
+
+        .cols{
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          column-gap:8mm;
+          page-break-inside: avoid;
+        }
+        .sec{ font-weight:600; color:#334155; font-size:10pt; margin-bottom:2mm; }
+        .text{ color:#0f172a; font-size:10.5pt; }
+        .mute{ color:#475569; font-size:10pt; }
+        .amt{ font-weight:800; font-size:11pt; color:#0f172a; margin-top:1mm; }
+
+        .qr-wrap{ text-align:center; page-break-inside: avoid; }
+        .qr-box{
+          display:inline-block; position:relative;
+          padding:3mm; border:.3mm solid #e5e7eb; border-radius:3mm; background:#fff;
+        }
+        .qr-hint{ color:#475569; font-size:9.5pt; margin-top:2mm; }
+        .used{
+          position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+          font-weight:900; font-size:18pt; letter-spacing:2pt; color:rgba(0,0,0,.22); transform:rotate(45deg);
+          pointer-events:none;
+        }
+
+        /* Print: tampilkan hanya #print-only, cegah halaman tambahan */
+        @media print{
+          html, body{ width:210mm; height:297mm; margin:0; background:#fff !important; }
+          body *{ visibility: hidden !important; }
+          #print-only, #print-only *{ visibility: visible !important; }
+          #print-only{ position: fixed; inset: 0; margin: 0; }
+
+          /* Fix beberapa browser yg suka bikin halaman kosong kedua */
+          #print-only, .sheet, .card, .cols, .qr-wrap{
+            page-break-after: avoid !important;
+            page-break-before: avoid !important;
+            page-break-inside: avoid !important;
+            break-after: avoid !important;
+            break-before: avoid !important;
+            break-inside: avoid !important;
           }
-          .no-print { display: none !important; }
-          html, body {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            background: #fff !important;
-          }
+
+          /* Sedikit "zoom" supaya engine print tidak split ke halaman 2 */
+          .sheet{ transform: scale(0.995); transform-origin: top left; }
         }
       `}</style>
     </>

@@ -27,7 +27,7 @@ function normalizeEventId(id: string | number): string {
   return String(id).split(/[?#]/)[0].replace(/:.+$/, '').trim();
 }
 
-/* ---------- tiny sound engine (no assets) ---------- */
+/* ---------- tiny sound engine ---------- */
 type BeepOpts = { freq?: number; dur?: number; type?: OscillatorType; gain?: number };
 function mkAudio(ctxRef: React.MutableRefObject<AudioContext | null>) {
   if (!ctxRef.current) {
@@ -37,8 +37,7 @@ function mkAudio(ctxRef: React.MutableRefObject<AudioContext | null>) {
   return ctxRef.current;
 }
 async function beep(ctxRef: React.MutableRefObject<AudioContext | null>, o: BeepOpts) {
-  const ctx = mkAudio(ctxRef);
-  if (!ctx) return;
+  const ctx = mkAudio(ctxRef); if (!ctx) return;
   const now = ctx.currentTime;
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
@@ -46,61 +45,32 @@ async function beep(ctxRef: React.MutableRefObject<AudioContext | null>, o: Beep
   osc.frequency.value = o.freq ?? 880;
   gain.gain.value = o.gain ?? 0.08;
   osc.connect(gain).connect(ctx.destination);
-  osc.start(now);
-  osc.stop(now + (o.dur ?? 0.12));
+  osc.start(now); osc.stop(now + (o.dur ?? 0.12));
 }
 async function chord(ctxRef: React.MutableRefObject<AudioContext | null>, parts: BeepOpts[]) {
-  const ctx = mkAudio(ctxRef);
-  if (!ctx) return;
+  const ctx = mkAudio(ctxRef); if (!ctx) return;
   const base = ctx.currentTime;
   for (let i = 0; i < parts.length; i++) {
     const p = parts[i];
-    const osc = ctx.createOscillator();
+    const o = ctx.createOscillator();
     const g = ctx.createGain();
-    osc.type = p.type ?? 'sine';
-    osc.frequency.value = p.freq ?? 660;
+    o.type = p.type ?? 'sine';
+    o.frequency.value = p.freq ?? 660;
     g.gain.value = p.gain ?? 0.07;
-    osc.connect(g).connect(ctx.destination);
-    const t0 = base + (i === 0 ? 0 : (parts[i - 1].dur ?? 0.12) * i * 0.8);
-    const dur = p.dur ?? 0.12;
-    osc.start(t0);
-    osc.stop(t0 + dur);
+    o.connect(g).connect(ctx.destination);
+    const t0 = base + (i === 0 ? 0 : (parts[i-1].dur ?? 0.12) * i * 0.8);
+    const d = p.dur ?? 0.12;
+    o.start(t0); o.stop(t0 + d);
   }
 }
-// SFX:
-const playSuccess = (ctxRef: React.MutableRefObject<AudioContext | null>) =>
-  chord(ctxRef, [
-    { freq: 660, dur: 0.09, type: 'triangle' },
-    { freq: 990, dur: 0.12, type: 'triangle' },
-  ]);
-const playFail = (ctxRef: React.MutableRefObject<AudioContext | null>) =>
-  chord(ctxRef, [
-    { freq: 220, dur: 0.16, type: 'square', gain: 0.09 },
-    { freq: 180, dur: 0.16, type: 'square', gain: 0.09 },
-  ]);
-const playDuplicate = (ctxRef: React.MutableRefObject<AudioContext | null>) =>
-  chord(ctxRef, [
-    { freq: 520, dur: 0.06, type: 'sine' },
-    { freq: 420, dur: 0.08, type: 'sine' },
-  ]);
-const playClick = (ctxRef: React.MutableRefObject<AudioContext | null>) =>
-  beep(ctxRef, { freq: 700, dur: 0.05, type: 'sine' });
+const playSuccess = (r: React.MutableRefObject<AudioContext | null>) => chord(r,[{freq:660,dur:0.09,type:'triangle'},{freq:990,dur:0.12,type:'triangle'}]);
+const playFail    = (r: React.MutableRefObject<AudioContext | null>) => chord(r,[{freq:220,dur:0.16,type:'square',gain:0.09},{freq:180,dur:0.16,type:'square',gain:0.09}]);
+const playDuplicate=(r: React.MutableRefObject<AudioContext | null>) => chord(r,[{freq:520,dur:0.06},{freq:420,dur:0.08}]);
+const playClick   = (r: React.MutableRefObject<AudioContext | null>) => beep(r,{freq:700,dur:0.05});
 
-/* ---------- types ---------- */
-type ScanLog = {
-  raw: string;
-  uuid: string;
-  ts: number;
-  ok: boolean | null;
-  msg: string;
-  name?: string;
-};
+type ScanLog = { raw: string; uuid: string; ts: number; ok: boolean | null; msg: string; name?: string };
 
-export default function AdminCheckInPage({
-  params,
-}: {
-  params: Promise<{ eventId: string }>;
-}) {
+export default function AdminCheckInPage({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = React.use(params);
   const safeEventId = React.useMemo(() => normalizeEventId(eventId), [eventId]);
 
@@ -128,20 +98,17 @@ export default function AdminCheckInPage({
   const [memilihFile, setMemilihFile] = React.useState(false);
   const [prosesFile, setProsesFile] = React.useState(false);
 
-  // audio
   const audioCtxRef = React.useRef<AudioContext | null>(null);
 
-  const scanConfig = React.useMemo(
-    () => ({
-      fps: 10,
-      qrbox: { width: 280, height: 280 },
-      rememberLastUsedCamera: true,
-      aspectRatio: 1,
-    }),
-    []
-  );
+  const scanConfig = React.useMemo(() => ({ fps: 10, qrbox: { width: 280, height: 280 }, rememberLastUsedCamera: true, aspectRatio: 1 }), []);
 
-  /* ---------- bootstrap ---------- */
+  React.useEffect(() => {
+    try {
+      setAdminId(Number(localStorage.getItem('adminId') || 0));
+      setAdminNama(localStorage.getItem('adminName') || '');
+    } catch {}
+  }, []);
+
   React.useEffect(() => {
     let hidup = true;
     (async () => {
@@ -149,9 +116,6 @@ export default function AdminCheckInPage({
         const mod = await import('html5-qrcode');
         if (!hidup) return;
         QrcodeClassRef.current = mod.Html5Qrcode;
-
-        setAdminId(Number(localStorage.getItem('adminId') || 0));
-        setAdminNama(localStorage.getItem('adminName') || '');
 
         const list = await mod.Html5Qrcode.getCameras();
         if (!hidup) return;
@@ -165,22 +129,19 @@ export default function AdminCheckInPage({
         setErrorAtas('Gagal memuat pemindai. Pastikan akses dari localhost/https & izinkan kamera.');
       }
     })();
-    return () => {
-      hidup = false;
-      (async () => {
-        try { if (QrcodeInstRef.current) await QrcodeInstRef.current.stop(); } catch {}
-        QrcodeInstRef.current = null;
-      })();
-    };
+    return () => { hidup = false; (async () => { try { if (QrcodeInstRef.current) await QrcodeInstRef.current.stop(); } catch {} QrcodeInstRef.current = null; })(); };
   }, []);
 
-  /* ---------- judul event ---------- */
   React.useEffect(() => {
     let batal = false;
     (async () => {
       if (!API_BASE || !safeEventId) return;
       const fetchJson = async (url: string) => {
-        const r = await fetch(url, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+        const token = localStorage.getItem('adminToken') || '';
+        const r = await fetch(url, {
+          headers: { Accept: 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          cache: 'no-store'
+        });
         if (!r.ok) return null;
         return r.json().catch(() => null);
       };
@@ -191,7 +152,6 @@ export default function AdminCheckInPage({
     return () => { batal = true; };
   }, [safeEventId]);
 
-  /* ---------- auto start ---------- */
   React.useEffect(() => {
     if (!kameraId || jalan || !QrcodeClassRef.current) return;
     void mulaiKamera();
@@ -219,7 +179,6 @@ export default function AdminCheckInPage({
       setErrorAtas('');
       await tungguDivSiap();
 
-      // "aktifkan" audio di gesture user pertama
       mkAudio(audioCtxRef);
       playClick(audioCtxRef);
 
@@ -256,18 +215,24 @@ export default function AdminCheckInPage({
   const pauseKamera  = React.useCallback(async () => { try { if (QrcodeInstRef.current && jalan && !pause) { await QrcodeInstRef.current.pause(true); setPause(true); } } catch {} }, [jalan, pause]);
   const resumeKamera = React.useCallback(async () => { try { if (QrcodeInstRef.current && jalan && pause) { await QrcodeInstRef.current.resume(); setPause(false); } } catch {} }, [jalan, pause]);
 
-  /* ---------- scan & submit ---------- */
   async function kirimCheckIn(raw: string) {
     const uuid = extractUuid(raw);
     const itemAwal: ScanLog = { raw, uuid, ts: Date.now(), ok: null, msg: 'Mencatat…' };
     setLog((prev) => [itemAwal, ...prev].slice(0, 40));
 
+    const token = localStorage.getItem('adminToken') || '';
+    if (!token) {
+      setLog((prev) => [{ ...itemAwal, ok: false, msg: 'Token tidak ada. Silakan login ulang.', name: '—' }, ...prev.filter(p => p !== itemAwal)]);
+      playFail(audioCtxRef);
+      return;
+    }
+    const auth = { Authorization: `Bearer ${token}` };
+
     try {
       setSibukSubmit(true);
 
-      // cek transaksi
       const probe = await fetch(`${API_BASE}/dashboard/ticket-transactions/${uuid}`, {
-        headers: { Accept: 'application/json' }, cache: 'no-store',
+        headers: { Accept: 'application/json', ...auth }, cache: 'no-store',
       });
 
       if (!probe.ok) {
@@ -278,23 +243,19 @@ export default function AdminCheckInPage({
         return;
       }
 
-      if (!adminId) {
-        setLog((prev) => [{ ...itemAwal, ok: false, msg: 'Admin belum login. Silakan login ulang.', name: '—' }, ...prev.filter(p => p !== itemAwal)]);
-        playFail(audioCtxRef);
-        return;
-      }
+      const body: any = { uuid, event_id: safeEventId };
+      if (adminId) body.admin_id = adminId;
+      if (adminNama) body.admin_name = adminNama;
 
-      // check-in
       const resp = await fetch(`${API_BASE}/dashboard/admin/check-in`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ uuid, admin_id: adminId, event_id: safeEventId }),
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...auth },
+        body: JSON.stringify(body),
       });
 
       const json: any = await resp.json().catch(() => ({}));
       const okRaw = resp.ok && json?.success !== false;
 
-      // sudah check-in?
       const msgStr = String(json?.message || '');
       const isAlready =
         okRaw && (/already\s*checked-?in/i.test(msgStr) || /sudah\s+di-?check-?in/i.test(msgStr));
@@ -302,9 +263,8 @@ export default function AdminCheckInPage({
       const msgForUI = isAlready ? 'Maaf, tiket sudah di-check-in.' :
                          okRaw ? (json?.message || 'Check-in tercatat') : (json?.message || 'Gagal');
 
-      // fetch detail utk panel kanan + nama
       try {
-        const d = await fetch(`${API_BASE}/dashboard/ticket-transactions/${uuid}`, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+        const d = await fetch(`${API_BASE}/dashboard/ticket-transactions/${uuid}`, { headers: { Accept: 'application/json', ...auth }, cache: 'no-store' });
         const detail = await d.json().catch(() => undefined);
         const data = detail?.data || null;
         setInfoTiket(data);
@@ -315,7 +275,6 @@ export default function AdminCheckInPage({
         setLog((prev) => [{ ...itemAwal, ok: okForUI, msg: msgForUI, name: '—' }, ...prev.filter(p => p !== itemAwal)]);
       }
 
-      // SFX
       if (okRaw && !isAlready) {
         try { (navigator as any).vibrate?.(80); } catch {}
         playSuccess(audioCtxRef);
@@ -332,7 +291,6 @@ export default function AdminCheckInPage({
     }
   }
 
-  /* ---------- file picker ---------- */
   async function bukaFilePicker() {
     if (memilihFile || prosesFile) return;
     setMemilihFile(true);
@@ -435,7 +393,6 @@ export default function AdminCheckInPage({
     try { return new Date(iso).toLocaleString('id-ID'); } catch { return iso ?? '-'; }
   };
 
-  /* ---------- UI ---------- */
   return (
     <div className="min-h-[100svh] bg-white">
       <Container className="py-4 sm:py-8">
@@ -453,7 +410,6 @@ export default function AdminCheckInPage({
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
-          {/* kiri */}
           <Card className="p-3 sm:p-4">
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-base font-semibold sm:text-lg">Pemindai QR</h2>
@@ -520,13 +476,14 @@ export default function AdminCheckInPage({
             </div>
           </Card>
 
-          {/* kanan */}
           <Card className="p-3 sm:p-4">
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-base font-semibold sm:text-lg">Informasi Tiket</h2>
             </div>
 
-            {!infoTiket ? (
+            {sibukSubmit ? (
+              <InfoSkeleton />
+            ) : !infoTiket ? (
               <div className="grid h-[260px] place-items-center rounded-md border bg-muted/30 sm:h-[300px]">
                 <div className="px-4 text-center text-sm text-muted-foreground">Arahkan kamera ke QR Code tiket, atau unggah gambar QR untuk melihat detailnya.</div>
               </div>
@@ -568,6 +525,31 @@ function Baris({ label, children }: { label: string; children: React.ReactNode }
     <div className="grid grid-cols-[130px_1fr] items-start gap-2 text-sm sm:grid-cols-[160px_1fr]">
       <div className="text-muted-foreground">{label}</div>
       <div className="font-medium break-words">{children}</div>
+    </div>
+  );
+}
+
+function InfoSkeleton() {
+  return (
+    <div className="rounded-md border p-3">
+      <div className="mb-3 flex items-center gap-2">
+        <div className="h-4 w-28 animate-pulse rounded bg-slate-200" />
+        <div className="h-4 w-16 animate-pulse rounded bg-slate-200" />
+      </div>
+      <div className="space-y-3">
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div key={i} className="grid grid-cols-[130px_1fr] items-center gap-2 sm:grid-cols-[160px_1fr]">
+            <div className="h-3.5 w-24 animate-pulse rounded bg-slate-200" />
+            <div className="h-3.5 w-full animate-pulse rounded bg-slate-200" />
+          </div>
+        ))}
+        <div className="mt-2 rounded-md bg-slate-100 p-3">
+          <div className="h-3.5 w-32 animate-pulse rounded bg-slate-200" />
+          <div className="mt-2 h-3.5 w-44 animate-pulse rounded bg-slate-200" />
+          <div className="mt-2 h-3.5 w-24 animate-pulse rounded bg-slate-200" />
+        </div>
+        <div className="pt-2 text-center text-xs text-muted-foreground">Memeriksa tiket…</div>
+      </div>
     </div>
   );
 }

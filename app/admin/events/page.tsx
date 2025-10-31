@@ -20,12 +20,6 @@ type EventItem = {
 };
 
 export default function AdminEventsPage() {
-  // proteksi admin sederhana
-  if (typeof window !== 'undefined' && !localStorage.getItem('adminToken')) {
-    window.location.href = '/admin/login';
-    return null;
-  }
-
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -62,11 +56,7 @@ export default function AdminEventsPage() {
 
   const fmt = (iso?: string) =>
     iso
-      ? new Date(iso).toLocaleDateString('id-ID', {
-          day: '2-digit',
-          month: 'long',
-          year: 'numeric',
-        })
+      ? new Date(iso).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
       : '—';
 
   return (
