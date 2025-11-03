@@ -1,42 +1,38 @@
-// lib/api-client.ts
-
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || 'https://cmsmj.fathforce.com/api';
 
-/** Helper: fetch + JSON + error handling */
-const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<T> => {
+type AnyObj = Record<string, any>;
+
+async function apiRequest<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
 
-  const config: RequestInit = {
-    cache: 'no-store',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      'X-Requested-With': 'XMLHttpRequest',
-      ...(process.env.NEXT_PUBLIC_API_KEY
-        ? { Authorization: `Bearer ${process.env.NEXT_PUBLIC_API_KEY}` }
-        : {}),
-      ...options.headers,
-    },
-    ...options,
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
+    ...(process.env.NEXT_PUBLIC_API_KEY ? { 'x-api-key': process.env.NEXT_PUBLIC_API_KEY } : {}),
+    ...(options.headers || {}),
   };
 
-  const res = await fetch(url, config);
-  if (!res.ok) {
-    let bodyText = '';
-    try {
-      bodyText = await res.text();
-    } catch {}
-    throw new Error(`API request failed ${res.status} ${res.statusText} (${url}) ${bodyText}`);
-  }
-  return (await res.json()) as T;
-};
+  const res = await fetch(url, {
+    cache: 'no-store',
+    ...options,
+    headers,
+  });
 
-/** Helper: ambil .data jika ada, kalau tidak ya kembalikan objeknya */
-const pickData = <T = any>(json: any): T => {
-  if (json && typeof json === 'object' && 'data' in json) {
-    return json.data as T;
+  if (!res.ok) {
+    let body = '';
+    try {
+      body = await res.text();
+    } catch {}
+    throw new Error(`API ${res.status} ${res.statusText} ${url} ${body}`);
   }
+
+  return (await res.json()) as T;
+}
+
+const pickData = <T = any>(json: AnyObj): T => {
+  if (json && typeof json === 'object' && 'data' in json) return json.data as T;
   return json as T;
 };
 
@@ -44,19 +40,19 @@ const pickData = <T = any>(json: any): T => {
    Event API
    ========================= */
 export const eventApi = {
-  getAllEvents: async () => {
+  async getAllEvents() {
     const json = await apiRequest('/dashboard/events');
     return pickData(json);
   },
-  getEventBySlug: async (slug: string) => {
+  async getEventBySlug(slug: string) {
     const json = await apiRequest(`/dashboard/events/slug/${slug}`);
     return pickData(json);
   },
-  getEventById: async (id: number) => {
+  async getEventById(id: number) {
     const json = await apiRequest(`/dashboard/events/${id}`);
     return pickData(json);
   },
-  searchEvents: async (query: string) => {
+  async searchEvents(query: string) {
     const json = await apiRequest(`/dashboard/events/search?q=${encodeURIComponent(query)}`);
     return pickData(json);
   },
@@ -66,11 +62,11 @@ export const eventApi = {
    Event Ticket API
    ========================= */
 export const eventTicketApi = {
-  getTicketsByEventId: async (eventId: number) => {
+  async getTicketsByEventId(eventId: number) {
     const json = await apiRequest(`/dashboard/event-tickets/event/${eventId}`);
     return pickData(json);
   },
-  getTicketById: async (id: number) => {
+  async getTicketById(id: number) {
     const json = await apiRequest(`/dashboard/event-tickets/${id}`);
     return pickData(json);
   },
@@ -80,26 +76,22 @@ export const eventTicketApi = {
    Ticket Transaction API
    ========================= */
 export const ticketTransactionApi = {
-  createTransaction: async (data: any) => {
+  async createTransaction(data: AnyObj) {
     const json = await apiRequest('/dashboard/ticket-transactions', {
       method: 'POST',
       body: JSON.stringify(data),
     });
     return pickData(json);
   },
-
-  // 🔹 Tambahan agar tidak error TS: getTransaction (by id/uuid sama endpoint)
-  getTransaction: async (id: string) => {
-    const json = await apiRequest(`/dashboard/ticket-transactions/${id}`);
+  async getTransaction(idOrUuid: string) {
+    const json = await apiRequest(`/dashboard/ticket-transactions/${idOrUuid}`);
     return pickData(json);
   },
-
-  getTransactionByUuid: async (uuid: string) => {
+  async getTransactionByUuid(uuid: string) {
     const json = await apiRequest(`/dashboard/ticket-transactions/${uuid}`);
     return pickData(json);
   },
-
-  updateTransactionStatus: async (uuid: string, body: any) => {
+  async updateTransactionStatus(uuid: string, body: AnyObj) {
     const json = await apiRequest(`/dashboard/ticket-transactions/${uuid}/status`, {
       method: 'PATCH',
       body: JSON.stringify(body),
@@ -112,21 +104,34 @@ export const ticketTransactionApi = {
    Admin API
    ========================= */
 export const adminApi = {
-  login: async (email: string, password: string) => {
+  async login(email: string, password: string) {
     const json = await apiRequest('/admin/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
     return pickData(json);
   },
-  getEventsForCheckIn: async () => {
+  async getEventsForCheckIn() {
     const json = await apiRequest('/admin/events/check-in');
     return pickData(json);
   },
-  checkInTicket: async (uuid: string, adminId: number) => {
+  async checkInTicket(uuid: string, adminId: number) {
     const json = await apiRequest('/admin/check-in', {
       method: 'POST',
       body: JSON.stringify({ uuid, admin_id: adminId }),
+    });
+    return pickData(json);
+  },
+};
+
+/* =========================
+   Payment Helpers (Midtrans confirm)
+   ========================= */
+export const paymentApi = {
+  async confirmMidtrans(orderId: string) {
+    const json = await apiRequest('/dashboard/payment/midtrans/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ order_id: orderId }),
     });
     return pickData(json);
   },

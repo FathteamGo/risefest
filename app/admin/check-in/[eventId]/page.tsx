@@ -431,7 +431,7 @@ export default function AdminCheckInPage({ params }: { params: Promise<{ eventId
               </select>
 
               {!jalan ? (
-                <Button onClick={mulaiKamera} disabled={!kameraId || startingRef.current} className="w-full sm:w-auto">
+                <Button variant="secondary" onClick={mulaiKamera} disabled={!kameraId || startingRef.current} className="w-full sm:w-auto">
                   Mulai Kamera
                 </Button>
               ) : (
@@ -439,9 +439,9 @@ export default function AdminCheckInPage({ params }: { params: Promise<{ eventId
                   {!pause ? (
                     <Button variant="secondary" onClick={pauseKamera} className="w-full sm:w-auto">Pause</Button>
                   ) : (
-                    <Button onClick={resumeKamera} className="w-full sm:w-auto">Lanjutkan</Button>
+                    <Button variant="secondary" onClick={resumeKamera} className="w-full sm:w-auto">Lanjutkan</Button>
                   )}
-                  <Button onClick={stopKamera} className="w-full sm:w-auto">Stop</Button>
+                  <Button variant="secondary" onClick={stopKamera} className="w-full sm:w-auto">Stop</Button>
                 </div>
               )}
 

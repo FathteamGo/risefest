@@ -1,3 +1,4 @@
+// app/events/[slug]/page.tsx
 import { notFound } from "next/navigation";
 import Container from "@/components/ui/Container";
 import { Card } from "@/components/ui/card";
@@ -10,6 +11,35 @@ type Props = { params: Promise<{ slug: string }> };
 
 export const dynamic = "force-dynamic";
 
+/* ===============================
+ *  WIB helpers
+ *  =============================== */
+const WIB_OFFSET = "+07:00";
+
+function parseToWIB(dateStr?: string | null): Date | null {
+  if (!dateStr) return null;
+  const s = String(dateStr).trim();
+  if (/[zZ]|[+\-]\d{2}:\d{2}$/.test(s)) return new Date(s);
+  return new Date(s.replace(" ", "T") + WIB_OFFSET);
+}
+
+function formatWIB(dateStr?: string | null): string {
+  const d = parseToWIB(dateStr);
+  if (!d) return "-";
+  return d.toLocaleString("id-ID", {
+    timeZone: "Asia/Jakarta",
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/* ===============================
+ *  PAGE
+ *  =============================== */
 export default async function EventDetailPage({ params }: Props) {
   const { slug } = await params;
 
@@ -18,16 +48,6 @@ export default async function EventDetailPage({ params }: Props) {
 
   const tickets: EventTicket[] =
     (await eventTicketService.getTicketsByEventId(event.id)) || [];
-
-  const formatDate = (dateString: string) =>
-    new Date(dateString).toLocaleString("id-ID", {
-      weekday: "long",
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -50,11 +70,7 @@ export default async function EventDetailPage({ params }: Props) {
 
               <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm md:text-base text-gray-100">
                 <div className="flex items-center gap-2">
-                  <svg
-                    className="h-5 w-5 text-white/90"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
+                  <svg className="h-5 w-5 text-white/90" viewBox="0 0 20 20" fill="currentColor">
                     <path
                       fillRule="evenodd"
                       d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
@@ -65,11 +81,7 @@ export default async function EventDetailPage({ params }: Props) {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <svg
-                    className="h-5 w-5 text-white/90"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
+                  <svg className="h-5 w-5 text-white/90" viewBox="0 0 20 20" fill="currentColor">
                     <path
                       fillRule="evenodd"
                       d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
@@ -77,7 +89,7 @@ export default async function EventDetailPage({ params }: Props) {
                     />
                   </svg>
                   <span>
-                    {formatDate(event.start_date)} – {formatDate(event.end_date)}
+                    {formatWIB(event.start_date)} – {formatWIB(event.end_date)}
                   </span>
                 </div>
               </div>
@@ -102,7 +114,7 @@ export default async function EventDetailPage({ params }: Props) {
               <div>
                 <h4 className="font-medium text-foreground">Tanggal & Waktu</h4>
                 <p className="text-muted-foreground">
-                  {formatDate(event.start_date)} <br />– {formatDate(event.end_date)}
+                  {formatWIB(event.start_date)} <br />– {formatWIB(event.end_date)}
                 </p>
               </div>
 
