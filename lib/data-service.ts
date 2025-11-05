@@ -1,5 +1,5 @@
-import { eventApi, eventTicketApi, ticketTransactionApi, adminApi, paymentApi } from './api-client';
-import type { Event, EventTicket, TicketTransaction, User } from '@/types';
+import { eventApi, eventTicketApi, ticketTransactionApi, adminApi, paymentApi, referralApi } from './api-client';
+import type { Event, EventTicket, TicketTransaction, User, Referral } from '@/types';
 
 type AnyObj = Record<string, any>;
 const unwrap = (r: AnyObj) => r?.data ?? r?.result ?? r;
@@ -19,6 +19,16 @@ export const eventService = {
   },
   async searchEvents(query: string): Promise<Event[]> {
     return await eventApi.searchEvents(query);
+  },
+};
+
+/* =========================
+   Referral Service
+   ========================= */
+export const referralService = {
+  async list(): Promise<Referral[]> {
+    const r = await referralApi.getAll();
+    return Array.isArray(r) ? r : [];
   },
 };
 
@@ -69,13 +79,13 @@ export const ticketTransactionService = {
    Admin Service
    ========================= */
 export const adminService = {
-  async login(email: string, password: string): Promise<User> {
+  async login(email: string, password: string) {
     return await adminApi.login(email, password);
   },
-  async getEventsForCheckIn(): Promise<Event[]> {
+  async getEventsForCheckIn() {
     return await adminApi.getEventsForCheckIn();
   },
-  async checkInTicket(uuid: string, adminId: number): Promise<boolean> {
+  async checkInTicket(uuid: string, adminId: number) {
     await adminApi.checkInTicket(uuid, adminId);
     return true;
   },

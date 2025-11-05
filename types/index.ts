@@ -1,17 +1,9 @@
-// Type definitions based on the database structure from BRD
-
 export type EventStatus = 'active' | 'inactive' | 'completed';
-
 export type TicketStatus = 'active' | 'inactive' | 'sold_out';
-
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'expired';
-
 export type TicketTransactionStatus = 'pending' | 'paid' | 'used' | 'cancelled';
-
 export type UserRole = 'admin' | 'superadmin';
-
 export type UserStatus = 'active' | 'inactive';
-
 export type Gender = 'male' | 'female';
 
 export interface Event {
@@ -23,13 +15,19 @@ export interface Event {
   banner: string;
   location: string;
   link: string;
-  start_date: string; // ISO date string
-  end_date: string; // ISO date string
+  start_date: string;
+  end_date: string;
   status: EventStatus;
   is_featured: boolean;
-  created_at: string; // ISO date string
-  updated_at: string; // ISO date string
+  created_at: string;
+  updated_at: string;
 }
+
+export type Referral = {
+  id: number;
+  name: string;
+  description?: string | null;
+};
 
 export interface EventTicket {
   id: number;
@@ -38,11 +36,11 @@ export interface EventTicket {
   description: string;
   price: number;
   quota?: number;
-  start_date: string; // ISO date string
-  end_date: string; // ISO date string
+  start_date: string;
+  end_date: string;
   status: TicketStatus;
-  created_at: string; // ISO date string
-  updated_at: string; // ISO date string
+  created_at: string;
+  updated_at: string;
 }
 
 export interface TicketTransaction {
@@ -63,10 +61,10 @@ export interface TicketTransaction {
   midtrans_order_id?: string;
   midtrans_transaction_id?: string;
   total_amount: number;
-  checked_in_at?: string; // ISO date string
+  checked_in_at?: string;
   checked_in_by?: number;
-  created_at: string; // ISO date string
-  updated_at: string; // ISO date string
+  created_at: string;
+  updated_at: string;
 }
 
 export interface User {
@@ -76,6 +74,6 @@ export interface User {
   password: string;
   role: UserRole;
   status: UserStatus;
-  created_at: string; // ISO date string
-  updated_at: string; // ISO date string
+  created_at: string;
+  updated_at: string;
 }

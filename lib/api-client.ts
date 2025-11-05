@@ -10,7 +10,7 @@ async function apiRequest<T = any>(endpoint: string, options: RequestInit = {}):
     'Content-Type': 'application/json',
     Accept: 'application/json',
     'X-Requested-With': 'XMLHttpRequest',
-    ...(process.env.NEXT_PUBLIC_API_KEY ? { 'x-api-key': process.env.NEXT_PUBLIC_API_KEY } : {}),
+    ...(process.env.NEXT_PUBLIC_API_KEY ? { 'X-Api-Key': process.env.NEXT_PUBLIC_API_KEY } : {}),
     ...(options.headers || {}),
   };
 
@@ -22,9 +22,7 @@ async function apiRequest<T = any>(endpoint: string, options: RequestInit = {}):
 
   if (!res.ok) {
     let body = '';
-    try {
-      body = await res.text();
-    } catch {}
+    try { body = await res.text(); } catch {}
     throw new Error(`API ${res.status} ${res.statusText} ${url} ${body}`);
   }
 
@@ -34,6 +32,16 @@ async function apiRequest<T = any>(endpoint: string, options: RequestInit = {}):
 const pickData = <T = any>(json: AnyObj): T => {
   if (json && typeof json === 'object' && 'data' in json) return json.data as T;
   return json as T;
+};
+
+const pickArray = <T = any>(json: AnyObj): T[] => {
+  if (Array.isArray(json)) return json as T[];
+  if (json && typeof json === 'object') {
+    if (Array.isArray((json as any).data)) return (json as any).data as T[];
+    if (Array.isArray((json as any).result)) return (json as any).result as T[];
+    if (Array.isArray((json as any).items)) return (json as any).items as T[];
+  }
+  return [];
 };
 
 /* =========================
@@ -55,6 +63,16 @@ export const eventApi = {
   async searchEvents(query: string) {
     const json = await apiRequest(`/dashboard/events/search?q=${encodeURIComponent(query)}`);
     return pickData(json);
+  },
+};
+
+/* =========================
+   Referral API
+   ========================= */
+export const referralApi = {
+  async getAll() {
+    const json = await apiRequest('/dashboard/referrals');
+    return pickArray(json);
   },
 };
 

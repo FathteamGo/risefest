@@ -1,4 +1,3 @@
-// app/events/[slug]/page.tsx
 import { notFound } from "next/navigation";
 import Container from "@/components/ui/Container";
 import { Card } from "@/components/ui/card";
