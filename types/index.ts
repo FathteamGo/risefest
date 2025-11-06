@@ -27,6 +27,9 @@ export type Referral = {
   id: number;
   name: string;
   description?: string | null;
+  share_type: 'percent' | 'fixed';
+  share_value: number;
+  is_active: boolean;
 };
 
 export interface EventTicket {
