@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ticketTransactionService } from '@/lib/data-service';
 import TicketCard from '@/components/pages/ticket/TicketCard';
+import { AnalyticsProvider } from '@/components/AnalyticsProvider';
+import { ENV } from '@/lib/env';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,10 +47,14 @@ export default async function TicketPage({
     start_date: tx.start_date ?? '',
     end_date: tx.end_date ?? '',
     slug: '/events',
+    fb_pixel_id: null,
   };
+
   const ticket = tx.ticket ?? { title: 'Tiket' };
 
-  const isPaid = String(tx.status || '').toLowerCase() === 'paid' || String(tx.status || '').toLowerCase() === 'used';
+  const status = String(tx.status || '').toLowerCase();
+  const isPaid = status === 'paid' || status === 'used';
+
   if (!isPaid) {
     return (
       <div className="min-h-[100svh] bg-white py-12">
@@ -69,14 +75,23 @@ export default async function TicketPage({
 
   return (
     <div className="min-h-[100svh] bg-white pb-[calc(88px+env(safe-area-inset-bottom))] sm:pb-10 pt-6">
+      {/* GA dari ENV, FB Pixel dari event backend */}
+      <AnalyticsProvider
+        gaId={ENV.PUBLIC_GOOGLE_ANALYTICS_ID}
+        fbPixelId={event.fb_pixel_id}
+      />
+
       <Container>
         <div className="mx-auto max-w-2xl">
-          {String(tx.status).toLowerCase() === 'used' && (
+          {status === 'used' && (
             <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
               <b>Tiket telah digunakan.</b>{' '}
               <span>
                 Digunakan pada{' '}
-                {new Date(tx.checked_in_at).toLocaleString('id-ID')}{''}.
+                {tx.checked_in_at
+                  ? new Date(tx.checked_in_at).toLocaleString('id-ID')
+                  : '-'}
+                .
               </span>
             </div>
           )}
