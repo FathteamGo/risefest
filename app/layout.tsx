@@ -1,12 +1,12 @@
-import "./globals.css";
-import type { Metadata } from "next";
-import { Suspense } from "react";
-import Layout from "@/components/Layout";
-import { AnalyticsProvider } from "@/components/AnalyticsProvider";
+import './globals.css';
+import type { Metadata } from 'next';
+import { Suspense } from 'react';
+import Layout from '@/components/Layout';
+// import { AnalyticsProvider } from '@/components/AnalyticsProvider';
 
 export const metadata: Metadata = {
-  title: "RISEfest - Muda Juara Festival",
-  description: "Event booking and ticketing system",
+  title: 'RISEfest - Muda Juara Festival',
+  description: 'Event booking and ticketing system',
 };
 
 export default function RootLayout({
@@ -17,9 +17,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Suspense fallback={null}>
+        {/* <Suspense fallback={null}>
           <AnalyticsProvider />
-        </Suspense>
+        </Suspense> */}
 
         <Suspense fallback={null}>
           <Layout>{children}</Layout>

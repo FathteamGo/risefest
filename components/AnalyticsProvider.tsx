@@ -6,14 +6,16 @@ import { useEffect } from 'react';
 
 declare global {
   interface Window {
-    gtag: any;
-    fbq: any;
-    dataLayer: any;
+    gtag?: (...args: any[]) => void;
+    fbq?: (...args: any[]) => void;
+    dataLayer?: any[];
+    __GA_ID?: string;
+    __FB_PIXEL_ID?: string;
   }
 }
 
 type AnalyticsProviderProps = {
-  gaId?: string;
+  gaId?: string | null;
   fbPixelId?: string | null;
 };
 
@@ -21,55 +23,68 @@ export function AnalyticsProvider({ gaId, fbPixelId }: AnalyticsProviderProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // init GA (client)
+  const resolvedGaId =
+    (gaId || '').trim() ||
+    (typeof window !== 'undefined' && window.__GA_ID) ||
+    '';
+
+  const resolvedFbPixelId =
+    (fbPixelId || '').trim() ||
+    (typeof window !== 'undefined' && window.__FB_PIXEL_ID) ||
+    '';
+
+  // Init GA
   useEffect(() => {
-    if (!gaId) return;
+    if (!resolvedGaId) return;
+
+    window.__GA_ID = resolvedGaId;
 
     window.dataLayer = window.dataLayer || [];
     window.gtag =
       window.gtag ||
       function gtag() {
         // eslint-disable-next-line prefer-rest-params
-        window.dataLayer.push(arguments);
+        window.dataLayer!.push(arguments);
       };
 
     window.gtag('js', new Date());
-    window.gtag('config', gaId, {
+    window.gtag('config', resolvedGaId, {
       page_path: window.location.pathname,
     });
-  }, [gaId]);
+  }, [resolvedGaId]);
 
-  // track pageview (GA + FB)
+  // Track pageview (GA + FB)
   useEffect(() => {
-    if (gaId && typeof window.gtag === 'function') {
-      window.gtag('config', gaId, {
-        page_path: pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : ''),
-      });
+    const url =
+      pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : '');
+
+    if (resolvedGaId && typeof window.gtag === 'function') {
+      window.gtag('config', resolvedGaId, { page_path: url });
     }
 
-    if (fbPixelId && typeof window.fbq === 'function') {
+    if (resolvedFbPixelId && typeof window.fbq === 'function') {
       window.fbq('track', 'PageView');
     }
-  }, [gaId, fbPixelId, pathname, searchParams]);
+  }, [resolvedGaId, resolvedFbPixelId, pathname, searchParams]);
 
   return (
     <>
-      {/* GA script */}
-      {gaId && (
+      {resolvedGaId && (
         <>
           <Script
             strategy="afterInteractive"
-            src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+            src={`https://www.googletagmanager.com/gtag/js?id=${resolvedGaId}`}
           />
           <Script
             id="gtag-init"
             strategy="afterInteractive"
             dangerouslySetInnerHTML={{
               __html: `
+                window.__GA_ID = '${resolvedGaId}';
                 window.dataLayer = window.dataLayer || [];
                 function gtag(){dataLayer.push(arguments);}
                 gtag('js', new Date());
-                gtag('config', '${gaId}', {
+                gtag('config', '${resolvedGaId}', {
                   page_path: window.location.pathname,
                 });
               `,
@@ -78,14 +93,14 @@ export function AnalyticsProvider({ gaId, fbPixelId }: AnalyticsProviderProps) {
         </>
       )}
 
-      {/* FB Pixel script */}
-      {fbPixelId && (
+      {resolvedFbPixelId && (
         <>
           <Script
             id="fb-pixel"
             strategy="afterInteractive"
             dangerouslySetInnerHTML={{
               __html: `
+                window.__FB_PIXEL_ID = '${resolvedFbPixelId}';
                 !function(f,b,e,v,n,t,s)
                 {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
                 n.callMethod.apply(n,arguments):n.queue.push(arguments)};
@@ -94,7 +109,7 @@ export function AnalyticsProvider({ gaId, fbPixelId }: AnalyticsProviderProps) {
                 t.src=v;s=b.getElementsByTagName(e)[0];
                 s.parentNode.insertBefore(t,s)}(window, document,'script',
                 'https://connect.facebook.net/en_US/fbevents.js');
-                fbq('init', '${fbPixelId}');
+                fbq('init', '${resolvedFbPixelId}');
                 fbq('track', 'PageView');
               `,
             }}
@@ -104,7 +119,7 @@ export function AnalyticsProvider({ gaId, fbPixelId }: AnalyticsProviderProps) {
               height="1"
               width="1"
               style={{ display: 'none' }}
-              src={`https://www.facebook.com/tr?id=${fbPixelId}&ev=PageView&noscript=1`}
+              src={`https://www.facebook.com/tr?id=${resolvedFbPixelId}&ev=PageView&noscript=1`}
             />
           </noscript>
         </>

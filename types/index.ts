@@ -21,6 +21,8 @@ export interface Event {
   is_featured: boolean;
   created_at: string;
   updated_at: string;
+  fb_pixel_id?: string | null;
+  google_analytic_id?: string | null;
 }
 
 export type Referral = {

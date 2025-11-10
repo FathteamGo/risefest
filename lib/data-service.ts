@@ -1,12 +1,23 @@
-import { eventApi, eventTicketApi, ticketTransactionApi, adminApi, paymentApi, referralApi } from './api-client';
-import type { Event, EventTicket, TicketTransaction, User, Referral } from '@/types';
+import {
+  eventApi,
+  eventTicketApi,
+  ticketTransactionApi,
+  adminApi,
+  paymentApi,
+  referralApi,
+} from './api-client';
+import type {
+  Event,
+  EventTicket,
+  TicketTransaction,
+  User,
+  Referral,
+} from '@/types';
 
 type AnyObj = Record<string, any>;
 const unwrap = (r: AnyObj) => r?.data ?? r?.result ?? r;
 
-/* =========================
-   Event Service
-   ========================= */
+/* Event Service */
 export const eventService = {
   async getAllEvents(): Promise<Event[]> {
     return await eventApi.getAllEvents();
@@ -22,9 +33,7 @@ export const eventService = {
   },
 };
 
-/* =========================
-   Referral Service
-   ========================= */
+/* Referral Service */
 export const referralService = {
   async list(): Promise<Referral[]> {
     const r = await referralApi.getAll();
@@ -32,9 +41,7 @@ export const referralService = {
   },
 };
 
-/* =========================
-   Event Ticket Service
-   ========================= */
+/* Event Ticket Service */
 export const eventTicketService = {
   async getTicketsByEventId(eventId: number): Promise<EventTicket[]> {
     return await eventTicketApi.getTicketsByEventId(eventId);
@@ -44,9 +51,7 @@ export const eventTicketService = {
   },
 };
 
-/* =========================
-   Ticket Transaction Service
-   ========================= */
+/* Ticket Transaction Service */
 export const ticketTransactionService = {
   async createTransaction(data: AnyObj) {
     const res = await ticketTransactionApi.createTransaction(data);
@@ -63,7 +68,10 @@ export const ticketTransactionService = {
     return this.getByIdOrUuid(uuid);
   },
   async updateStatus(uuid: string, body: AnyObj) {
-    const res = await ticketTransactionApi.updateTransactionStatus(uuid, body);
+    const res = await ticketTransactionApi.updateTransactionStatus(
+      uuid,
+      body,
+    );
     return unwrap(res);
   },
   async updateTransactionStatus(uuid: string, body: AnyObj) {
@@ -75,9 +83,7 @@ export const ticketTransactionService = {
   },
 };
 
-/* =========================
-   Admin Service
-   ========================= */
+/* Admin Service */
 export const adminService = {
   async login(email: string, password: string) {
     return await adminApi.login(email, password);

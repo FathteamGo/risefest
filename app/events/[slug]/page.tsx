@@ -1,44 +1,41 @@
-import { notFound } from "next/navigation";
-import Container from "@/components/ui/Container";
-import { Card } from "@/components/ui/card";
-import BottomEnrollBar from "@/components/pages/events/BottomEnrollBar";
-import { eventService, eventTicketService } from "@/lib/data-service";
-import type { EventTicket } from "@/types";
-import BannerImage from "@/components/BannerImage";
+import { notFound } from 'next/navigation';
+import Container from '@/components/ui/Container';
+import { Card } from '@/components/ui/card';
+import BottomEnrollBar from '@/components/pages/events/BottomEnrollBar';
+import { eventService, eventTicketService } from '@/lib/data-service';
+import type { EventTicket } from '@/types';
+import BannerImage from '@/components/BannerImage';
+import { AnalyticsProvider } from '@/components/AnalyticsProvider';
 
 type Props = { params: Promise<{ slug: string }> };
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
-/* ===============================
- *  WIB helpers
- * =============================== */
-const WIB_OFFSET = "+07:00";
+/* WIB helpers */
+const WIB_OFFSET = '+07:00';
 
 function parseToWIB(dateStr?: string | null): Date | null {
   if (!dateStr) return null;
   const s = String(dateStr).trim();
   if (/[zZ]|[+\-]\d{2}:\d{2}$/.test(s)) return new Date(s);
-  return new Date(s.replace(" ", "T") + WIB_OFFSET);
+  return new Date(s.replace(' ', 'T') + WIB_OFFSET);
 }
 
 function formatWIB(dateStr?: string | null): string {
   const d = parseToWIB(dateStr);
-  if (!d) return "-";
-  return d.toLocaleString("id-ID", {
-    timeZone: "Asia/Jakarta",
-    weekday: "long",
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
+  if (!d) return '-';
+  return d.toLocaleString('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 }
 
-/* ===============================
- *  PAGE
- * =============================== */
+/* PAGE */
 export default async function EventDetailPage({ params }: Props) {
   const { slug } = await params;
 
@@ -50,7 +47,12 @@ export default async function EventDetailPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      {/* ======== BANNER ======== */}
+      <AnalyticsProvider
+        gaId={event.google_analytic_id || null}
+        fbPixelId={event.fb_pixel_id || null}
+      />
+
+      {/* BANNER */}
       <div className="relative h-[260px] md:h-[420px] lg:h-[460px] overflow-hidden rounded-b-3xl shadow-md">
         <BannerImage
           src={event.banner}
@@ -93,12 +95,12 @@ export default async function EventDetailPage({ params }: Props) {
                   >
                     <path
                       fillRule="evenodd"
-                      d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                      d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1z"
                       clipRule="evenodd"
                     />
                   </svg>
                   <span className="leading-snug">
-                    {formatWIB(event.start_date)}{" "}
+                    {formatWIB(event.start_date)}{' '}
                     <span className="hidden md:inline">–</span>
                     <span className="block md:inline">
                       {formatWIB(event.end_date)}
@@ -111,10 +113,9 @@ export default async function EventDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {/* ======== CONTENT ======== */}
+      {/* CONTENT */}
       <Container className="py-8 md:py-12 lg:py-16">
         <div className="mx-auto max-w-6xl grid grid-cols-1 gap-4 md:gap-6 lg:gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1.85fr)]">
-          {/* LEFT: Rincian Acara */}
           <Card className="bg-white/95 p-5 md:p-6 lg:p-7 border border-gray-100 shadow-md rounded-2xl hover:shadow-lg transition-shadow duration-300">
             <h3 className="text-lg md:text-xl font-semibold mb-5">
               Rincian Acara
@@ -142,36 +143,19 @@ export default async function EventDetailPage({ params }: Props) {
                 <h4 className="font-medium text-gray-900">Status</h4>
                 <span
                   className={`inline-flex w-fit items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                    event.status === "active"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-gray-200 text-gray-600"
+                    event.status === 'active'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-gray-200 text-gray-600'
                   }`}
                 >
-                  {String(event.status ?? "")
+                  {String(event.status ?? '')
                     .replace(/^./, (c) => c.toUpperCase())
-                    .replace("_", " ")}
+                    .replace('_', ' ')}
                 </span>
               </div>
-
-              {event.link && (
-                <div className="flex flex-col gap-1">
-                  <h4 className="font-medium text-gray-900">
-                    Tautan Eksternal
-                  </h4>
-                  <a
-                    href={event.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-700 hover:underline underline-offset-2 break-all"
-                  >
-                    Kunjungi situs
-                  </a>
-                </div>
-              )}
             </div>
           </Card>
 
-          {/* RIGHT: Deskripsi (HTML support) */}
           <Card className="bg-white/95 p-5 md:p-6 lg:p-7 border border-gray-100 shadow-md rounded-2xl hover:shadow-lg transition-shadow duration-300 mt-2 lg:mt-0">
             <h2 className="text-xl md:text-2xl font-semibold mb-4 md:mb-5">
               Deskripsi Acara

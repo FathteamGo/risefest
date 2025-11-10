@@ -1,7 +1,5 @@
 'use client';
 
-import { ENV } from '@/lib/env';
-
 type EventNames =
   | 'page_view'
   | 'view_item'
@@ -20,18 +18,35 @@ interface EventParams {
   value?: number;
   transaction_id?: string;
   content_name?: string;
+  page_path?: string;
 }
 
+declare global {
+  interface Window {
+    gtag?: (...args: any[]) => void;
+    fbq?: (...args: any[]) => void;
+    __GA_ID?: string;
+    __FB_PIXEL_ID?: string;
+  }
+}
+
+const getGaId = () =>
+  (typeof window !== 'undefined' && window.__GA_ID) || '';
+
 export const trackGAEvent = (eventName: EventNames, params?: EventParams) => {
-  const gaId = ENV.PUBLIC_GOOGLE_ANALYTICS_ID;
-  if (typeof window !== 'undefined' && gaId && typeof window.gtag === 'function') {
-    window.gtag('event', eventName, params);
+  const gaId = getGaId();
+  if (
+    typeof window !== 'undefined' &&
+    gaId &&
+    typeof window.gtag === 'function'
+  ) {
+    window.gtag('event', eventName, params || {});
   }
 };
 
 export const trackFBEvent = (eventName: string, params?: any) => {
   if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
-    window.fbq('track', eventName, params);
+    window.fbq('track', eventName, params || {});
   }
 };
 
@@ -56,10 +71,14 @@ export const trackEvent = (eventName: EventNames, params?: EventParams) => {
 
 export const trackPageView = (path: string) => {
   trackGAEvent('page_view', { page_path: path });
-  trackFBEvent('PageView');
+  trackFBEvent('PageView', { page_path: path });
 };
 
-export const trackEventRegistration = (eventId: string, eventName: string, value?: number) => {
+export const trackEventRegistration = (
+  eventId: string,
+  eventName: string,
+  value?: number,
+) => {
   const params: EventParams = {
     currency: 'IDR',
     value: value || 0,
@@ -76,7 +95,11 @@ export const trackEventRegistration = (eventId: string, eventName: string, value
   });
 };
 
-export const trackPurchase = (transactionId: string, value: number, currency = 'IDR') => {
+export const trackPurchase = (
+  transactionId: string,
+  value: number,
+  currency = 'IDR',
+) => {
   const params: EventParams = {
     transaction_id: transactionId,
     currency,
@@ -88,5 +111,6 @@ export const trackPurchase = (transactionId: string, value: number, currency = '
   trackFBEvent('Purchase', {
     currency,
     value,
+    transaction_id: transactionId,
   });
 };
