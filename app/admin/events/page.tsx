@@ -19,6 +19,27 @@ type EventItem = {
   thumbnail?: string;
 };
 
+// WIB
+const WIB = 'Asia/Jakarta';
+
+function toDateWIB(s?: string | null): Date | null {
+  if (!s) return null;
+  const iso = s.replace(' ', 'T');
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function fmtDate(s?: string) {
+  const d = toDateWIB(s);
+  if (!d) return '—';
+  return d.toLocaleDateString('id-ID', {
+    timeZone: WIB,
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
 export default function AdminEventsPage() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,11 +75,6 @@ export default function AdminEventsPage() {
     );
   };
 
-  const fmt = (iso?: string) =>
-    iso
-      ? new Date(iso).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
-      : '—';
-
   return (
     <div className="min-h-screen">
       <Container className="py-8 md:py-10">
@@ -74,7 +90,11 @@ export default function AdminEventsPage() {
           <>
             <div className="grid grid-cols-1 gap-5 md:gap-6 md:grid-cols-2 xl:grid-cols-3">
               {events.map((event) => (
-                <Link key={event.id} href={`/admin/check-in/${event.id}`} className="group block focus:outline-none">
+                <Link
+                  key={event.id}
+                  href={`/admin/check-in/${event.id}`}
+                  className="group block focus:outline-none"
+                >
                   <Card className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow duration-200 hover:shadow-md">
                     <div className="relative aspect-[16/9] w-full overflow-hidden">
                       <div className="absolute inset-x-0 top-0 h-[3px] bg-blue-200" />
@@ -114,7 +134,7 @@ export default function AdminEventsPage() {
                               clipRule="evenodd"
                             />
                           </svg>
-                          {fmt(event.start_date)} — {fmt(event.end_date)}
+                          {fmtDate(event.start_date)}
                         </span>
                       </div>
 

@@ -39,13 +39,30 @@ function fmtIDR(n: number) {
   }).format(Number(n || 0));
 }
 
-function formatTanggal(iso?: string | null) {
-  if (!iso) return '-';
-  try {
-    return new Date(iso).toLocaleString('id-ID');
-  } catch {
-    return iso ?? '-';
+// --- WIB helpers ---
+const WIB_OFFSET = '+07:00';
+
+function parseToWIB(dateStr?: string | null): Date | null {
+  if (!dateStr) return null;
+  const s = String(dateStr).trim();
+  if (/[zZ]|[+\-]\d{2}:\d{2}$/.test(s)) {
+    return new Date(s);
   }
+
+  return new Date(s.replace(' ', 'T') + WIB_OFFSET);
+}
+
+function formatTanggal(iso?: string | null) {
+  const d = parseToWIB(iso);
+  if (!d) return '-';
+  return d.toLocaleString('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 function capitalizeWords(v?: string | null) {
@@ -774,7 +791,9 @@ export default function AdminCheckInPage({
                   </Button>
                 </div>
               )}
-
+            <p className="mt-2 text-[11px] text-muted-foreground sm:text-xs">
+              Stop Untuk Mengganti Kamera 
+            </p>
               <div className="sm:ml-auto" />
 
               <input
@@ -962,13 +981,12 @@ export default function AdminCheckInPage({
                     <div className="text-sm font-semibold">
                       Sudah Check-in
                     </div>
-                    <div className="text-sm">
-                      Waktu:{' '}
-                      {formatTanggal(
-                        infoTiket.checked_in_at_iso ??
-                          infoTiket.checked_in_at,
-                      )}
-                    </div>
+                      <div className="text-sm">
+                        Waktu:{' '}
+                        {formatTanggal(
+                          infoTiket.checked_in_at_iso ?? infoTiket.checked_in_at,
+                        )}
+                      </div>
                     <div className="text-sm">
                       Oleh:{' '}
                       <b>

@@ -1,5 +1,6 @@
 'use client';
 
+import type React from 'react';
 import type { Event, EventTicket, Referral } from '@/types';
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
@@ -15,36 +16,57 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL!;
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY!;
 
 const rupiah = (n: number) => `IDR ${Number(n || 0).toLocaleString('id-ID')}`;
-const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('id-ID', {
+const WIB_OFFSET = '+07:00';
+
+function parseToWIB(dateStr?: string | null): Date | null {
+  if (!dateStr) return null;
+  const s = String(dateStr).trim();
+  if (/[zZ]|[+\-]\d{2}:\d{2}$/.test(s)) return new Date(s);
+  return new Date(s.replace(' ', 'T') + WIB_OFFSET);
+}
+
+function formatWIBDate(dateStr?: string | null): string {
+  const d = parseToWIB(dateStr);
+  if (!d) return '-';
+  return d.toLocaleDateString('id-ID', {
+    timeZone: 'Asia/Jakarta',
     day: '2-digit',
     month: 'long',
     year: 'numeric',
   });
-const fmtTime = (iso: string) =>
-  new Date(iso).toLocaleTimeString('id-ID', {
+}
+
+function formatWIBTime(dateStr?: string | null): string {
+  const d = parseToWIB(dateStr);
+  if (!d) return '-';
+  return d.toLocaleTimeString('id-ID', {
+    timeZone: 'Asia/Jakarta',
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
   });
+}
 
-const fmtDateRange = (startISO?: string, endISO?: string) => {
-  if (!startISO) return '-';
-  if (!endISO) return `${fmtDate(startISO)} pukul ${fmtTime(startISO)}`;
-  const s = new Date(startISO);
-  const e = new Date(endISO);
-  const sameDay =
-    s.getFullYear() === e.getFullYear() &&
-    s.getMonth() === e.getMonth() &&
-    s.getDate() === e.getDate();
-  if (sameDay)
-    return `${fmtDate(startISO)} pukul ${fmtTime(
-      startISO,
-    )} - ${fmtTime(endISO)}`;
-  return `${fmtDate(startISO)} ${fmtTime(
-    startISO,
-  )} - ${fmtDate(endISO)} ${fmtTime(endISO)}`;
-};
+function formatWIBTimeRange(start?: string | null, end?: string | null): string {
+  const startTime = formatWIBTime(start);
+  const endTime = formatWIBTime(end);
+  if (startTime === '-' || endTime === '-') return '-';
+  return `${startTime} – ${endTime}`;
+}
+
+const sanitizePhone = (raw: string) => raw.replace(/[^\d]/g, '').slice(0, 15);
+const sanitizeName = (raw: string) =>
+  raw
+    .normalize('NFKD')
+    // remove combining diacritical marks introduced by NFKD normalization
+    .replace(/[\u0300-\u036f]/g, '')
+    // allow only ASCII letters, space, apostrophe, dot and hyphen
+    .replace(/[^A-Za-z\s'.-]/g, '')
+    .slice(0, 80);
+const sanitizeEmail = (raw: string) =>
+  raw
+    .replace(/[^\w.@+-]/g, '')
+    .slice(0, 100);
 
 function CitySelect({
   value,
@@ -84,9 +106,7 @@ function CitySelect({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return allCities.slice(0, 200);
-    return allCities
-      .filter((c) => c.toLowerCase().includes(q))
-      .slice(0, 200);
+    return allCities.filter((c) => c.toLowerCase().includes(q)).slice(0, 200);
   }, [allCities, query]);
 
   useEffect(() => {
@@ -121,14 +141,8 @@ function CitySelect({
   };
 
   return (
-    <div ref={wrapRef} className="relative z-50">
-      <input
-        tabIndex={-1}
-        className="sr-only"
-        value={value}
-        readOnly
-        required={required}
-      />
+    <div ref={wrapRef} className="relative">
+      <input tabIndex={-1} className="sr-only" value={value} readOnly required={required} />
       <Input
         inputMode="search"
         className="bg-white"
@@ -146,15 +160,13 @@ function CitySelect({
         spellCheck={false}
       />
       {open && (
-        <div className="absolute z-[9999] mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-xl">
+        <div className="absolute z-30 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-xl">
           <div className="border-b bg-slate-50 px-3 py-2 text-xs text-slate-500">
             Ketik untuk mencari kota.
           </div>
           <div className="max-h-64 overflow-auto py-1">
             {filtered.length === 0 ? (
-              <div className="px-3 py-2 text-sm text-slate-500">
-                Tidak ada hasil.
-              </div>
+              <div className="px-3 py-2 text-sm text-slate-500">Tidak ada hasil.</div>
             ) : (
               filtered.map((c, i) => {
                 const isActive = i === highlight;
@@ -163,9 +175,7 @@ function CitySelect({
                     type="button"
                     key={c}
                     className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm ${
-                      isActive
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'hover:bg-slate-50'
+                      isActive ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50'
                     }`}
                     onMouseEnter={() => setHighlight(i)}
                     onClick={() => {
@@ -190,16 +200,12 @@ function loadSnap() {
     if ((window as any).snap) return resolve();
     const s = document.createElement('script');
     const SNAP_IS_PROD =
-      String(
-        process.env.NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION ?? 'false',
-      ).toLowerCase() === 'true';
+      String(process.env.NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION ?? 'false').toLowerCase() ===
+      'true';
     s.src = SNAP_IS_PROD
       ? 'https://app.midtrans.com/snap/snap.js'
       : 'https://app.sandbox.midtrans.com/snap/snap.js';
-    s.setAttribute(
-      'data-client-key',
-      process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || '',
-    );
+    s.setAttribute('data-client-key', process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || '');
     s.onload = () => resolve();
     s.onerror = reject;
     document.body.appendChild(s);
@@ -252,9 +258,7 @@ export default function RegistrationForm({
     };
   }, []);
 
-  const [ticketHolders, setTicketHolders] = useState([
-    { name: '', email: '', phone: '' },
-  ]);
+  const [ticketHolders, setTicketHolders] = useState([{ name: '', email: '', phone: '' }]);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [redirecting, setRedirecting] = useState(false);
@@ -270,21 +274,13 @@ export default function RegistrationForm({
     setTicketHolders((v) => [...v, { name: '', email: '', phone: '' }]);
 
   const removeTicketHolder = (i: number) =>
-    setTicketHolders((v) =>
-      v.length > 1 ? v.filter((_, idx) => idx !== i) : v,
-    );
+    setTicketHolders((v) => (v.length > 1 ? v.filter((_, idx) => idx !== i) : v));
 
-  const updateTicketHolder = (
-    i: number,
-    field: 'name' | 'email' | 'phone',
-    value: string,
-  ) =>
-    setTicketHolders((v) =>
-      v.map((h, idx) => (idx === i ? { ...h, [field]: value } : h)),
-    );
+  const updateTicketHolder = (i: number, field: 'name' | 'email' | 'phone', value: string) =>
+    setTicketHolders((v) => v.map((h, idx) => (idx === i ? { ...h, [field]: value } : h)));
 
   const qty = ticketHolders.length;
-  
+
   useEffect(() => {
     const controller = new AbortController();
 
@@ -316,28 +312,21 @@ export default function RegistrationForm({
     return () => controller.abort();
   }, [ticket.id, qty]);
 
-  const isBuyerFilled =
-    buyerInfo.name &&
-    buyerInfo.email &&
-    buyerInfo.phone &&
-    buyerInfo.city;
+  const isBuyerFilled = buyerInfo.name && buyerInfo.email && buyerInfo.phone && buyerInfo.city;
 
-  const isHoldersFilled = ticketHolders.every(
-    (h) => h.name && h.email && h.phone,
-  );
+  const isHoldersFilled = ticketHolders.every((h) => h.name && h.email && h.phone);
 
   const canSubmit = Boolean(isBuyerFilled && isHoldersFilled && !submitting);
 
   const resetSnapArtifacts = useCallback(() => {
     const html = document.documentElement;
     const body = document.body;
-    ['overflow', 'paddingRight', 'marginRight', 'position', 'height', 'width']
-      .forEach((k) => {
-        // @ts-ignore
-        html.style[k] = '';
-        // @ts-ignore
-        body.style[k] = '';
-      });
+    ['overflow', 'paddingRight', 'marginRight', 'position', 'height', 'width'].forEach((k) => {
+      // @ts-ignore
+      html.style[k] = '';
+      // @ts-ignore
+      body.style[k] = '';
+    });
     ['snap-body', 'snap-open', 'modal-open', 'swal2-shown'].forEach((cls) => {
       html.classList.remove(cls);
       body.classList.remove(cls);
@@ -345,17 +334,14 @@ export default function RegistrationForm({
   }, []);
 
   async function confirmOnServer(orderId: string): Promise<string[] | null> {
-    const resp = await fetch(
-      `${API_BASE}/dashboard/payment/midtrans/confirm`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': API_KEY,
-        },
-        body: JSON.stringify({ order_id: orderId }),
+    const resp = await fetch(`${API_BASE}/dashboard/payment/midtrans/confirm`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': API_KEY,
       },
-    )
+      body: JSON.stringify({ order_id: orderId }),
+    })
       .then((r) => r.json())
       .catch(() => null as any);
 
@@ -398,48 +384,42 @@ export default function RegistrationForm({
       setSubmitting(true);
 
       const first = ticketHolders[0];
-      const created: StoreResp = await fetch(
-        `${API_BASE}/dashboard/ticket-transactions`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': API_KEY,
-          },
-          body: JSON.stringify({
-            event_id: event.id,
-            event_ticket_id: ticket.id,
-
-            ticket_holder_name: first.name,
-            ticket_holder_phone: first.phone,
-            ticket_holder_email: first.email,
-
-            ticket_holders: ticketHolders.map((h) => ({
-              name: h.name,
-              email: h.email,
-              phone: h.phone,
-            })),
-
-            buyer_name: buyerInfo.name,
-            buyer_phone: buyerInfo.phone,
-            buyer_email: buyerInfo.email,
-            buyer_city: buyerInfo.city,
-
-            payment_method: 'snap',
-            quantity: qty,
-
-            referral_id:
-              referralId === '' ? null : Number(referralId),
-          }),
+      const created: StoreResp = await fetch(`${API_BASE}/dashboard/ticket-transactions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': API_KEY,
         },
-      ).then((r) => r.json());
+        body: JSON.stringify({
+          event_id: event.id,
+          event_ticket_id: ticket.id,
+
+          ticket_holder_name: first.name,
+          ticket_holder_phone: first.phone,
+          ticket_holder_email: first.email,
+
+          ticket_holders: ticketHolders.map((h) => ({
+            name: h.name,
+            email: h.email,
+            phone: h.phone,
+          })),
+
+          buyer_name: buyerInfo.name,
+          buyer_phone: buyerInfo.phone,
+          buyer_email: buyerInfo.email,
+          buyer_city: buyerInfo.city,
+
+          payment_method: 'snap',
+          quantity: qty,
+
+          referral_id: referralId === '' ? null : Number(referralId),
+        }),
+      }).then((r) => r.json());
 
       const orderId = created?.data?.order_id;
       const snapToken = created?.data?.snap_token;
       if (!orderId || !snapToken) {
-        throw new Error(
-          'Gagal membuat transaksi (order_id/snap_token kosong).',
-        );
+        throw new Error('Gagal membuat transaksi (order_id/snap_token kosong).');
       }
 
       await loadSnap();
@@ -461,10 +441,7 @@ export default function RegistrationForm({
         },
       });
     } catch (err: any) {
-      setErrorMsg(
-        err?.message ||
-          'Terjadi kesalahan saat membuat transaksi.',
-      );
+      setErrorMsg(err?.message || 'Terjadi kesalahan saat membuat transaksi.');
       setRedirecting(false);
       resetSnapArtifacts();
     } finally {
@@ -479,13 +456,9 @@ export default function RegistrationForm({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Link
               href={`/events/${event.slug}`}
-              className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
+              className="inline-flex items-center rounded-full bg-slate-50 px-4 py-2 text-sm font-medium text-blue-600 shadow-sm ring-1 ring-slate-200 hover:bg-slate-100"
             >
-              <svg
-                className="mr-2 h-4 w-4"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
+              <svg className="mr-2 h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                 <path
                   fillRule="evenodd"
                   d="M12.293 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L8.414 10l3.879 3.879a1 1 0 010 1.414z"
@@ -496,16 +469,12 @@ export default function RegistrationForm({
             </Link>
           </div>
 
-          <div className="mt-3">
+          <div className="mt-4">
             <h1 className="text-2xl font-bold md:text-3xl">
-              Daftar untuk{' '}
-              <span className="text-blue-700">
-                {event.title}
-              </span>
+              Daftar untuk <span className="text-blue-700">{event.title}</span>
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              Lengkapi data di bawah untuk menyelesaikan
-              pendaftaran kamu.
+              Lengkapi data di bawah untuk menyelesaikan pendaftaran kamu.
             </p>
           </div>
         </Container>
@@ -513,16 +482,10 @@ export default function RegistrationForm({
 
       <Container className="py-8 md:py-10">
         <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-          <form
-            id="regForm"
-            onSubmit={handleSubmit}
-            className="space-y-6"
-          >
-            <Card className="overflow-visible border-slate-200 p-0 shadow-sm">
-              <div className="border-b bg-slate-50 px-5 py-4 md:px-6">
-                <h2 className="text-base font-semibold">
-                  Informasi Pembeli
-                </h2>
+          <form id="regForm" onSubmit={handleSubmit} className="space-y-6">
+            <Card className="overflow-visible rounded-2xl border border-slate-200 p-0 shadow-sm">
+              <div className="rounded-t-2xl border-b bg-slate-50 px-5 py-4 md:px-6">
+                <h2 className="text-base font-semibold">Informasi Pembeli</h2>
                 <p className="mt-1 text-xs text-slate-500">
                   Data ini digunakan untuk invoice & notifikasi.
                 </p>
@@ -530,99 +493,70 @@ export default function RegistrationForm({
               <div className="px-5 py-5 md:px-6 md:py-6">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
-                    <label className="mb-1 block text-sm font-medium">
-                      Nama Lengkap *
-                    </label>
+                    <label className="mb-1 block text-sm font-medium">Nama Lengkap *</label>
                     <Input
                       className="bg-white"
                       placeholder="Nama sesuai KTP"
                       value={buyerInfo.name}
                       onChange={(e) =>
-                        updateBuyerInfo(
-                          'name',
-                          e.target.value,
-                        )
+                        updateBuyerInfo('name', sanitizeName(e.target.value))
                       }
                       autoComplete="off"
                       required
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-medium">
-                      Alamat Email *
-                    </label>
+                    <label className="mb-1 block text-sm font-medium">Alamat Email *</label>
                     <Input
                       className="bg-white"
                       type="email"
                       placeholder="nama@email.com"
                       value={buyerInfo.email}
                       onChange={(e) =>
-                        updateBuyerInfo(
-                          'email',
-                          e.target.value,
-                        )
+                        updateBuyerInfo('email', sanitizeEmail(e.target.value))
                       }
                       autoComplete="off"
                       required
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-medium">
-                      Nomor Telepon *
-                    </label>
+                    <label className="mb-1 block text-sm font-medium">Nomor Telepon *</label>
                     <Input
                       className="bg-white"
                       inputMode="tel"
                       placeholder="08xxxxxxxxxx"
                       value={buyerInfo.phone}
                       onChange={(e) =>
-                        updateBuyerInfo(
-                          'phone',
-                          e.target.value,
-                        )
+                        updateBuyerInfo('phone', sanitizePhone(e.target.value))
                       }
+                      pattern="^[0-9]{8,15}$"
+                      maxLength={15}
                       autoComplete="off"
                       required
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-medium">
-                      Asal Kota *
-                    </label>
+                    <label className="mb-1 block text-sm font-medium">Asal Kota *</label>
                     <CitySelect
                       value={buyerInfo.city}
-                      onChange={(v) =>
-                        updateBuyerInfo('city', v)
-                      }
+                      onChange={(v) => updateBuyerInfo('city', v)}
                     />
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="mb-1 block text-sm font-medium">
-                      Referral (opsional)
-                    </label>
+                    <label className="mb-1 block text-sm font-medium">Referral (opsional)</label>
                     <select
                       className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                       value={referralId}
                       onChange={(e) =>
                         setReferralId(
-                          e.target.value === ''
-                            ? ''
-                            : Number(e.target.value),
+                          e.target.value === '' ? '' : Number(e.target.value),
                         )
                       }
                     >
-                      <option value="">
-                        — Tidak ada —
-                      </option>
-                      {(Array.isArray(referrals)
-                        ? referrals
-                        : []
-                      ).map((r) => (
-                        <option
-                          key={r.id}
-                          value={r.id}
-                        >
+                      <option value="">— Tidak ada —</option>
+                      {(Array.isArray(referrals) ? referrals : []).map((r) => (
+                        <option key={r.id} value={r.id}>
                           {r.name}
                         </option>
                       ))}
@@ -637,15 +571,12 @@ export default function RegistrationForm({
               </div>
             </Card>
 
-            <Card className="overflow-visible border-slate-200 p-0 shadow-sm">
-              <div className="flex items-center justify-between border-b bg-slate-50 px-5 py-4 md:px-6">
+            <Card className="overflow-visible rounded-2xl border border-slate-200 p-0 shadow-sm">
+              <div className="flex items-center justify-between rounded-t-2xl border-b bg-slate-50 px-5 py-4 md:px-6">
                 <div>
-                  <h2 className="text-base font-semibold">
-                    Informasi Pemegang Tiket
-                  </h2>
+                  <h2 className="text-base font-semibold">Informasi Pemegang Tiket</h2>
                   <p className="mt-1 text-xs text-slate-500">
-                    Nama akan muncul pada tiket & QR
-                    check-in.
+                    Nama akan muncul pada tiket & QR check-in.
                   </p>
                 </div>
                 <Button
@@ -668,15 +599,10 @@ export default function RegistrationForm({
                         <p className="max-w-[70%] truncate text-sm font-medium sm:max-w-none">
                           Pemegang Tiket {i + 1}
                         </p>
-                        {ticketHolders.length >
-                          1 && (
+                        {ticketHolders.length > 1 && (
                           <button
                             type="button"
-                            onClick={() =>
-                              removeTicketHolder(
-                                i,
-                              )
-                            }
+                            onClick={() => removeTicketHolder(i)}
                             className="rounded-full px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
                           >
                             Hapus
@@ -694,11 +620,7 @@ export default function RegistrationForm({
                             placeholder="Nama lengkap"
                             value={h.name}
                             onChange={(e) =>
-                              updateTicketHolder(
-                                i,
-                                'name',
-                                e.target.value,
-                              )
+                              updateTicketHolder(i, 'name', sanitizeName(e.target.value))
                             }
                             autoComplete="off"
                             required
@@ -717,7 +639,7 @@ export default function RegistrationForm({
                               updateTicketHolder(
                                 i,
                                 'email',
-                                e.target.value,
+                                sanitizeEmail(e.target.value),
                               )
                             }
                             autoComplete="off"
@@ -737,9 +659,11 @@ export default function RegistrationForm({
                               updateTicketHolder(
                                 i,
                                 'phone',
-                                e.target.value,
+                                sanitizePhone(e.target.value),
                               )
                             }
+                            pattern="^[0-9]{8,15}$"
+                            maxLength={15}
                             autoComplete="off"
                             required
                           />
@@ -759,40 +683,29 @@ export default function RegistrationForm({
           </form>
 
           <aside className="lg:sticky lg:top-6">
-            <Card className="overflow-hidden border-slate-200 shadow-sm">
+            <Card className="overflow-hidden rounded-2xl border-slate-200 shadow-sm">
               <div className="border-b bg-slate-50 px-5 py-4 md:px-6">
-                <h3 className="text-base font-semibold">
-                  Ringkasan Pembayaran
-                </h3>
+                <h3 className="text-base font-semibold">Ringkasan Pembayaran</h3>
               </div>
               <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
                 <div className="overflow-hidden rounded-xl border border-slate-200">
                   <div className="divide-y text-sm">
                     <div className="grid grid-cols-2 gap-3 p-4">
-                      <div className="text-slate-500">
-                        Tiket
-                      </div>
+                      <div className="text-slate-500">Tiket</div>
                       <div className="text-right font-medium">
-                        {ticket.title} ×{' '}
-                        {ticketHolders.length}
+                        {ticket.title} × {ticketHolders.length}
                       </div>
-                      <div className="text-slate-500">
-                        Subtotal
-                      </div>
-                      <div className="text-right font-medium">
-                        {rupiah(subtotal)}
-                      </div>
-                      <div className="text-slate-500">
-                        Biaya Admin
-                      </div>
-                      <div className="text-right font-medium">
-                        {rupiah(adminFee)}
-                      </div>
+                      <div className="text-slate-500">Subtotal</div>
+                      <div className="text-right font-medium">{rupiah(subtotal)}</div>
+                      {adminFee > 0 && (
+                        <>
+                          <div className="text-slate-500">Biaya Admin</div>
+                          <div className="text-right font-medium">{rupiah(adminFee)}</div>
+                        </>
+                      )}
                     </div>
                     <div className="flex items-center justify-between bg-blue-50 px-4 py-3">
-                      <span className="text-sm font-semibold text-blue-700">
-                        Total
-                      </span>
+                      <span className="text-sm font-semibold text-blue-700">Total</span>
                       <span className="text-lg font-bold text-blue-700">
                         {rupiah(total)}
                       </span>
@@ -801,16 +714,10 @@ export default function RegistrationForm({
                 </div>
 
                 <div>
-                  <h4 className="mb-2 text-sm font-semibold">
-                    Detail Acara
-                  </h4>
+                  <h4 className="mb-2 text-sm font-semibold">Detail Acara</h4>
                   <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
                     <p className="flex items-center">
-                      <svg
-                        className="mr-2 h-4 w-4"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                      >
+                      <svg className="mr-2 h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                         <path
                           fillRule="evenodd"
                           d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
@@ -831,10 +738,9 @@ export default function RegistrationForm({
                           clipRule="evenodd"
                         />
                       </svg>
-                      {fmtDateRange(
-                        event.start_date,
-                        event.end_date,
-                      )}
+                      <span className="flex flex-col">
+                        <span>{formatWIBDate(event.start_date)} • {formatWIBTimeRange(event.start_date, event.end_date)}</span>
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -846,22 +752,14 @@ export default function RegistrationForm({
                     className="h-11 w-full rounded-full bg-blue-700 font-semibold text-white shadow-md hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-gray-300"
                     disabled={!canSubmit}
                   >
-                    {submitting
-                      ? 'Memproses…'
-                      : 'Lanjutkan Pembayaran'}
+                    {submitting ? 'Memproses…' : 'Lanjutkan Pembayaran'}
                   </Button>
                 </div>
 
                 <p className="text-center text-[11px] leading-relaxed text-slate-500">
                   Dengan melanjutkan, Anda menyetujui{' '}
-                  <span className="underline">
-                    Syarat &amp; Ketentuan
-                  </span>{' '}
-                  serta{' '}
-                  <span className="underline">
-                    Kebijakan Privasi
-                  </span>
-                  .
+                  <span className="underline">Syarat &amp; Ketentuan</span> serta{' '}
+                  <span className="underline">Kebijakan Privasi</span>.
                 </p>
               </div>
             </Card>
@@ -874,18 +772,13 @@ export default function RegistrationForm({
       <div
         className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white md:hidden"
         style={{
-          paddingBottom:
-            'env(safe-area-inset-bottom)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
         }}
       >
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4 py-3">
           <div className="min-w-0">
-            <div className="text-xs text-slate-500">
-              Total
-            </div>
-            <div className="truncate text-lg font-bold">
-              {rupiah(total)}
-            </div>
+            <div className="text-xs text-slate-500">Total</div>
+            <div className="truncate text-lg font-bold">{rupiah(total)}</div>
           </div>
           <Button
             form="regForm"
@@ -893,9 +786,7 @@ export default function RegistrationForm({
             className="h-11 flex-1 rounded-full bg-blue-700 font-semibold text-white shadow-md hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-gray-300"
             disabled={!canSubmit}
           >
-            {submitting
-              ? 'Memproses…'
-              : 'Lanjutkan Pembayaran'}
+            {submitting ? 'Memproses…' : 'Lanjutkan Pembayaran'}
           </Button>
         </div>
       </div>
@@ -903,11 +794,7 @@ export default function RegistrationForm({
       {redirecting && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-white/80">
           <div className="flex flex-col items-center gap-3 text-gray-700">
-            <svg
-              className="h-8 w-8 animate-spin"
-              viewBox="0 0 24 24"
-              fill="none"
-            >
+            <svg className="h-8 w-8 animate-spin" viewBox="0 0 24 24" fill="none">
               <circle
                 className="opacity-25"
                 cx="12"
@@ -922,9 +809,7 @@ export default function RegistrationForm({
                 d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
               />
             </svg>
-            <p className="text-sm">
-              Memproses pembayaran…
-            </p>
+            <p className="text-sm">Memproses pembayaran…</p>
           </div>
         </div>
       )}

@@ -10,12 +10,18 @@ export default function Header() {
   const [isAuthed, setIsAuthed] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+
   const isAdmin = pathname?.startsWith('/admin');
+  const isRegisterPage =
+    pathname?.startsWith('/events/') && pathname?.includes('/register');
+  const showSearch = !isAdmin && !isRegisterPage;
 
   useEffect(() => {
     setIsClient(true);
     try {
-      const cookieAuthed = document.cookie.split('; ').some((c) => c.startsWith('adminToken='));
+      const cookieAuthed = document.cookie
+        .split('; ')
+        .some((c) => c.startsWith('adminToken='));
       setIsAuthed(cookieAuthed);
     } catch {
       setIsAuthed(false);
@@ -42,31 +48,50 @@ export default function Header() {
             aria-label={isAdmin ? 'Go to admin events' : 'Go to homepage'}
           >
             <span className="relative inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-md ring-1 ring-slate-200 shadow-sm">
-              <Image src="/icons/placeholder.jpg" alt="RISEfest Logo" width={80} height={80} className="object-contain" />
+              <Image
+                src="/icons/placeholder.jpg"
+                alt="RISEfest Logo"
+                width={80}
+                height={80}
+                className="object-contain"
+              />
             </span>
             <div className="leading-tight">
               <p className="text-[15px] font-semibold tracking-tight text-slate-900">
                 {isAdmin ? 'RISEfest Admin' : 'RISEfest'}
               </p>
-              {isAdmin ? <p className="text-[11px] text-slate-500">Admin Console</p> : null}
+              {isAdmin ? (
+                <p className="text-[11px] text-slate-500">Admin Console</p>
+              ) : null}
             </div>
           </Link>
 
           <div className="flex items-center gap-2">
-            {/* PUBLIC search button (visible for everyone, no login needed) */}
-            <Link
-              href="/transactions/search"
-              className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-200"
-              aria-label="Search transactions"
-              title="Search transactions"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z" />
-              </svg>
-              <span className="hidden sm:inline">Cari</span>
-            </Link>
+            {showSearch && (
+              <Link
+                href="/transactions/search"
+                className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                aria-label="Search transactions"
+                title="Search transactions"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z"
+                  />
+                </svg>
+                <span className="hidden sm:inline">Cari</span>
+              </Link>
+            )}
 
-            {/* Logout only shown in admin area & authenticated */}
             {isClient && isAdmin && isAuthed ? (
               <button
                 onClick={handleLogout}

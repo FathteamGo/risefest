@@ -22,34 +22,57 @@ export default function AdminLoginPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
+  function goAfterLogin() {
+    const fallback = '/admin/events';
+    const target = next && next.startsWith('/') ? next : fallback;
+
+    if (typeof window !== 'undefined') {
+      window.location.href = target;
+    } else {
+      router.replace(target);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (busy) return;
     setBusy(true);
     setError('');
+
     try {
       const r = await fetch(`${API_BASE}/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
         body: JSON.stringify({ email, password }),
       });
-      const j = await r.json().catch(() => ({}));
+
+      if (!r.ok) throw new Error('invalid');
+
+      const j = (await r.json().catch(() => ({}))) as any;
       const token = j?.token || j?.access_token || j?.data?.token;
       if (!token) throw new Error('invalid');
 
       const user = j?.user || j?.data?.user || j?.data || {};
-      const uid  = Number(user?.id || user?.user_id || 0);
-      const name = String(user?.name || user?.full_name || user?.username || '').trim();
+      const uid = Number(user?.id || user?.user_id || 0);
+      const name = String(
+        user?.name || user?.full_name || user?.username || '',
+      ).trim();
 
       const maxAge = remember ? 60 * 60 * 24 : 60 * 60 * 4;
-      document.cookie = `${COOKIE}=${encodeURIComponent(token)}; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
+      document.cookie = `${COOKIE}=${encodeURIComponent(
+        token,
+      )}; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
 
       try {
         localStorage.setItem('adminToken', token);
-        if (uid)  localStorage.setItem('adminId', String(uid));
+        if (uid) localStorage.setItem('adminId', String(uid));
         if (name) localStorage.setItem('adminName', name);
       } catch {}
 
-      router.replace(next);
+      goAfterLogin();
     } catch {
       setError('Email atau kata sandi salah.');
     } finally {
@@ -60,21 +83,23 @@ export default function AdminLoginPage() {
   return (
     <main className="bg-white">
       <section className="mx-auto w-full max-w-6xl px-4">
-        <div
-          className="
-            flex items-center justify-center
-            min-h-[calc(100svh-240px)] sm:min-h-[calc(100svh-200px)]
-            py-6 sm:py-8
-          "
-        >
+        <div className="flex min-h-[calc(100svh-240px)] items-center justify-center py-6 sm:min-h-[calc(100svh-200px)] sm:py-8">
           <Card className="mx-auto w-full max-w-[380px] rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
             <div className="mb-4 flex items-center gap-3">
               <div className="grid h-9 w-9 place-items-center overflow-hidden rounded-md ring-1 ring-slate-200">
-                <img src="/icons/placeholder.jpg" alt="Logo" className="h-full w-full object-cover" />
+                <img
+                  src="/icons/placeholder.jpg"
+                  alt="Logo"
+                  className="h-full w-full object-cover"
+                />
               </div>
               <div>
-                <h1 className="text-base font-semibold leading-tight">RISEfest Admin</h1>
-                <p className="text-xs text-slate-500">Masuk untuk mengakses dasbor</p>
+                <h1 className="text-base font-semibold leading-tight">
+                  RISEfest Admin
+                </h1>
+                <p className="text-xs text-slate-500">
+                  Masuk untuk mengakses dasbor
+                </p>
               </div>
             </div>
 
@@ -86,7 +111,9 @@ export default function AdminLoginPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-slate-700">Alamat Email</label>
+                <label className="text-sm font-medium text-slate-700">
+                  Alamat Email
+                </label>
                 <div className="relative mt-1">
                   <Input
                     type="email"
@@ -94,19 +121,30 @@ export default function AdminLoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="admin@example.com"
                     required
+                    autoComplete="username"
                     className="h-11 pl-9"
                   />
                   <span className="pointer-events-none absolute inset-y-0 left-3 grid w-6 place-items-center text-slate-400">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                      <path d="M4 6h16v12H4z" stroke="currentColor" strokeWidth="1.6" />
-                      <path d="M4 7l8 6 8-6" stroke="currentColor" strokeWidth="1.6" />
+                      <path
+                        d="M4 6h16v12H4z"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                      />
+                      <path
+                        d="M4 7l8 6 8-6"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                      />
                     </svg>
                   </span>
                 </div>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-slate-700">Kata Sandi</label>
+                <label className="text-sm font-medium text-slate-700">
+                  Kata Sandi
+                </label>
                 <div className="relative mt-1">
                   <Input
                     type={showPass ? 'text' : 'password'}
@@ -114,12 +152,25 @@ export default function AdminLoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     required
+                    autoComplete="current-password"
                     className="h-11 pl-9 pr-10"
                   />
                   <span className="pointer-events-none absolute inset-y-0 left-3 grid w-6 place-items-center text-slate-400">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                      <rect x="5" y="11" width="14" height="8" rx="2" stroke="currentColor" strokeWidth="1.6" />
-                      <path d="M8 11V8a4 4 0 118 0v3" stroke="currentColor" strokeWidth="1.6" />
+                      <rect
+                        x="5"
+                        y="11"
+                        width="14"
+                        height="8"
+                        rx="2"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                      />
+                      <path
+                        d="M8 11V8a4 4 0 118 0v3"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                      />
                     </svg>
                   </span>
                   <button
@@ -129,21 +180,53 @@ export default function AdminLoginPage() {
                     aria-label={showPass ? 'Sembunyikan sandi' : 'Tampilkan sandi'}
                   >
                     {showPass ? (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                        <path d="M3 3l18 18" stroke="currentColor" strokeWidth="1.8" />
-                        <path d="M2 12s4-7 10-7c3.3 0 6 1.8 8 4" stroke="currentColor" strokeWidth="1.6" />
-                        <path d="M22 12s-4 7-10 7c-3.3 0-6-1.8-8-4" stroke="currentColor" strokeWidth="1.6" />
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                      >
+                        <path
+                          d="M3 3l18 18"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                        />
+                        <path
+                          d="M2 12s4-7 10-7c3.3 0 6 1.8 8 4"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                        />
+                        <path
+                          d="M22 12s-4 7-10 7c-3.3 0-6-1.8-8-4"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                        />
                       </svg>
                     ) : (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                        <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" stroke="currentColor" strokeWidth="1.6" />
-                        <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6" />
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                      >
+                        <path
+                          d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                        />
+                        <circle
+                          cx="12"
+                          cy="12"
+                          r="3"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                        />
                       </svg>
                     )}
                   </button>
                 </div>
 
-                <div className="mt-2 flex items-center justify-between">
+                <div className="mt-2 flex items-center justify-start">
                   <label className="flex items-center gap-2 text-sm text-slate-600">
                     <input
                       type="checkbox"
@@ -153,16 +236,13 @@ export default function AdminLoginPage() {
                     />
                     Ingat saya
                   </label>
-                  <a href="#" className="text-sm text-indigo-600 hover:underline">
-                    Lupa kata sandi?
-                  </a>
                 </div>
               </div>
 
               <Button
                 disabled={busy}
                 type="submit"
-                className="mt-1.5 h-11 w-full rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
+                className="mt-1.5 h-11 w-full rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-80"
               >
                 {busy ? 'Memproses…' : 'Masuk'}
               </Button>

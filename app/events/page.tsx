@@ -6,9 +6,12 @@ import { useRouter } from 'next/navigation';
 import Container from '@/components/ui/Container';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import EventCard from '@/components/ui/EventCard';
+import BannerImage from '@/components/BannerImage';
 import { eventService } from '@/lib/data-service';
 import type { Event } from '@/types';
+
+const stripHtml = (html?: string | null) =>
+  html ? html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : '';
 
 export default function EventsPage() {
   const router = useRouter();
@@ -25,20 +28,23 @@ export default function EventsPage() {
     (async () => {
       try {
         setMemuat(true);
-        const data = await eventService.getAllEvents().catch(() => []) as Event[];
+        const data = (await eventService.getAllEvents().catch(() => [])) as Event[];
 
-        const filtered = (data || []).filter(
-          (ev) => String(ev.status).toLowerCase() === 'active' && !!ev.is_featured
-        );
+        const filtered = (data || [])
+          .filter(
+            (ev) =>
+              String(ev.status).toLowerCase() === 'active' &&
+              !!ev.is_featured,
+          )
+          .map((ev) => ({
+            ...ev,
+            description: stripHtml(ev.description as any),
+          }));
 
         if (!mounted) return;
 
         setEvents(filtered);
         setTersaring(filtered);
-
-        if (filtered.length > 0 && filtered[0]?.slug) {
-          router.replace(`/events/${filtered[0].slug}`);
-        }
       } finally {
         if (mounted) setMemuat(false);
       }
@@ -47,7 +53,7 @@ export default function EventsPage() {
     return () => {
       mounted = false;
     };
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current);
@@ -59,17 +65,24 @@ export default function EventsPage() {
         if (!q) {
           setTersaring(events);
         } else {
-          const res = (await eventService.searchEvents(q).catch(() => null)) as Event[] | null;
+          const res = (await eventService.searchEvents(q).catch(() => null)) as
+            | Event[]
+            | null;
 
           if (Array.isArray(res) && res.length) {
-            setTersaring(res);
+            setTersaring(
+              res.map((ev) => ({
+                ...ev,
+                description: stripHtml(ev.description as any),
+              })),
+            );
           } else {
             setTersaring(
               events.filter((ev) =>
                 [ev.title, ev.description, ev.location]
                   .filter(Boolean)
-                  .some((v) => String(v).toLowerCase().includes(q))
-              )
+                  .some((v) => String(v).toLowerCase().includes(q)),
+              ),
             );
           }
         }
@@ -83,9 +96,10 @@ export default function EventsPage() {
     };
   }, [kataKunci, events]);
 
-  const infoJumlah = useMemo(() => {
-    return { total: events.length, tampil: tersaring.length };
-  }, [events.length, tersaring.length]);
+  const infoJumlah = useMemo(
+    () => ({ total: events.length, tampil: tersaring.length }),
+    [events.length, tersaring.length],
+  );
 
   return (
     <div className="min-h-screen bg-background py-8">
@@ -93,7 +107,9 @@ export default function EventsPage() {
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight">Semua Acara</h1>
-          <p className="text-sm text-muted-foreground">Jelajahi seluruh acara yang tersedia</p>
+          <p className="text-sm text-muted-foreground">
+            Jelajahi seluruh acara yang tersedia
+          </p>
         </div>
 
         {/* Toolbar: cari + statistik kecil */}
@@ -152,12 +168,63 @@ export default function EventsPage() {
               />
             </svg>
             <h2 className="mb-1 text-lg font-semibold">Acara tidak ditemukan</h2>
-            <p className="text-sm text-muted-foreground">Coba ubah kata kunci pencarian Anda.</p>
+            <p className="text-sm text-muted-foreground">
+              Coba ubah kata kunci pencarian Anda.
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {tersaring.map((ev) => (
-              <EventCard key={ev.id} event={ev} />
+              <button
+                key={ev.id}
+                type="button"
+                onClick={() => router.push(`/events/${ev.slug}`)}
+                className="group overflow-hidden rounded-2xl border bg-card text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              >
+                <div className="relative aspect-[16/9] w-full overflow-hidden bg-muted">
+                  <BannerImage
+                    src={ev.banner}
+                    alt={ev.title}
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    fallbackSrc="/icons/placeholder.jpg"
+                  />
+                  {ev.status && (
+                    <span className="absolute right-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
+                      {String(ev.status).toLowerCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="space-y-1.5 p-4">
+                  <h2 className="line-clamp-1 text-base font-semibold text-foreground">
+                    {ev.title}
+                  </h2>
+                  {ev.description && (
+                    <p className="line-clamp-2 text-xs text-muted-foreground">
+                      {stripHtml(ev.description as any)}
+                    </p>
+                  )}
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    {ev.location && (
+                      <span className="inline-flex items-center gap-1">
+                        <svg
+                          className="h-3.5 w-3.5"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                        <span className="line-clamp-1 max-w-[150px]">
+                          {ev.location}
+                        </span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </button>
             ))}
           </div>
         )}

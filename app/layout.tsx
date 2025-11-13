@@ -7,6 +7,9 @@ import Layout from '@/components/Layout';
 export const metadata: Metadata = {
   title: 'RISEfest - Muda Juara Festival',
   description: 'Event booking and ticketing system',
+  icons: {
+    icon: "/rise-favicon.ico",
+  }, 
 };
 
 export default function RootLayout({

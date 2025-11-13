@@ -10,16 +10,62 @@ function fmtIDR(n: number) {
   return `IDR ${Number(n || 0).toLocaleString('id-ID')}`;
 }
 
-function fmtDateID(iso?: string) {
-  if (!iso) return '-';
-  return new Date(iso).toLocaleString('id-ID', {
-    year: 'numeric',
-    month: 'long',
+/** WIB helpers **/
+const WIB_OFFSET = '+07:00';
+
+function parseToWIB(dateStr?: string | null): Date | null {
+  if (!dateStr) return null;
+  const s = String(dateStr).trim();
+  // kalau sudah ada Z atau offset => langsung pakai
+  if (/[zZ]|[+\-]\d{2}:\d{2}$/.test(s)) return new Date(s);
+  // format "YYYY-MM-DD HH:MM:SS" => paksa ke WIB
+  return new Date(s.replace(' ', 'T') + WIB_OFFSET);
+}
+
+function formatWIBDate(dateStr?: string | null): string {
+  const d = parseToWIB(dateStr);
+  if (!d) return '-';
+  return d.toLocaleDateString('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    weekday: 'long',
     day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+function formatWIBTime(dateStr?: string | null): string {
+  const d = parseToWIB(dateStr);
+  if (!d) return '-';
+  return d.toLocaleTimeString('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
+
+function formatWIBTimeRange(start?: string | null, end?: string | null): string {
+  const startTime = formatWIBTime(start);
+  const endTime = formatWIBTime(end);
+  if (startTime === '-' || endTime === '-') return '-';
+  return `${startTime} – ${endTime}`;
+}
+
+// buat checked_in_at dsb
+function formatWIBDateTime(dateStr?: string | null): string {
+  const d = parseToWIB(dateStr);
+  if (!d) return '-';
+  return d.toLocaleString('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
   });
 }
+
 
 export default function TicketCard({
   tx,
@@ -64,7 +110,7 @@ export default function TicketCard({
                   {event.title}
                 </h2>
                 <p className="text-gray-600">
-                  {fmtDateID(event.start_date)} — {fmtDateID(event.end_date)}
+                  {formatWIBDate(event.start_date)} • {formatWIBTimeRange(event.start_date, event.end_date)}
                 </p>
                 <p className="text-gray-600">{event.location}</p>
               </div>
@@ -84,7 +130,7 @@ export default function TicketCard({
                 <p className="break-all text-gray-600">Kode Transaksi: {tx.id}</p>
                 {tx.checked_in_at && (
                   <p className="mt-2 text-xs text-gray-600">
-                    Digunakan pada {fmtDateID(tx.checked_in_at)}
+                    Digunakan pada {formatWIBDateTime(tx.checked_in_at)}
                   </p>
                 )}
               </div>
