@@ -58,9 +58,7 @@ const sanitizePhone = (raw: string) => raw.replace(/[^\d]/g, '').slice(0, 15);
 const sanitizeName = (raw: string) =>
   raw
     .normalize('NFKD')
-    // remove combining diacritical marks introduced by NFKD normalization
     .replace(/[\u0300-\u036f]/g, '')
-    // allow only ASCII letters, space, apostrophe, dot and hyphen
     .replace(/[^A-Za-z\s'.-]/g, '')
     .slice(0, 80);
 const sanitizeEmail = (raw: string) =>
@@ -184,6 +182,164 @@ function CitySelect({
                     }}
                   >
                     <span>{c}</span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReferralSelect({
+  items,
+  value,
+  onChange,
+  placeholder = 'Cari & pilih referral',
+  required = false,
+  disabled = false,
+}: {
+  items: Referral[];
+  value: number | '';
+  onChange: (v: number | '') => void;
+  placeholder?: string;
+  required?: boolean;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [highlight, setHighlight] = useState(0);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  const selectedName = useMemo(() => {
+    if (value === '') return '';
+    return items.find((i) => i.id === value)?.name ?? '';
+  }, [items, value]);
+
+  useEffect(() => {
+    if (!open) setQuery(selectedName || '');
+  }, [open, selectedName]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items.slice(0, 200);
+    return items.filter((r) => r.name.toLowerCase().includes(q)).slice(0, 200);
+  }, [items, query]);
+
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!wrapRef.current) return;
+      if (!wrapRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [open]);
+
+  useEffect(() => {
+    if (open) setHighlight(0);
+  }, [open, query]);
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (disabled) return;
+
+    if (!open && (e.key === 'ArrowDown' || e.key === 'Enter')) {
+      setOpen(true);
+      setQuery('');
+      return;
+    }
+    if (!open) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlight((h) => Math.min(h + 1, filtered.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlight((h) => Math.max(h - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const pick = filtered[highlight];
+      if (pick) {
+        onChange(pick.id);
+        setOpen(false);
+      }
+    } else if (e.key === 'Escape') {
+      setOpen(false);
+    }
+  };
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <input
+        tabIndex={-1}
+        className="sr-only"
+        value={value === '' ? '' : String(value)}
+        readOnly
+        required={required}
+      />
+
+      <Input
+        inputMode="search"
+        className="bg-white"
+        placeholder={placeholder}
+        value={open ? query : selectedName}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          if (!open) setOpen(true);
+        }}
+        onFocus={() => {
+          if (disabled) return;
+          setOpen(true);
+          setQuery('');
+        }}
+        onKeyDown={onKeyDown}
+        autoComplete="new-password"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
+        disabled={disabled}
+      />
+
+      {open && !disabled && (
+        <div className="absolute z-30 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-xl">
+          <div className="border-b bg-slate-50 px-3 py-2 text-xs text-slate-500">
+            Ketik untuk mencari referral.
+          </div>
+
+          <div className="max-h-64 overflow-auto py-1">
+            <button
+              type="button"
+              className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm ${
+                value === '' ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50'
+              }`}
+              onClick={() => {
+                onChange('');
+                setOpen(false);
+              }}
+            >
+              <span>— Tidak ada —</span>
+            </button>
+
+            {filtered.length === 0 ? (
+              <div className="px-3 py-2 text-sm text-slate-500">Tidak ada hasil.</div>
+            ) : (
+              filtered.map((r, i) => {
+                const isActive = i === highlight;
+                return (
+                  <button
+                    type="button"
+                    key={r.id}
+                    className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm ${
+                      isActive ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50'
+                    }`}
+                    onMouseEnter={() => setHighlight(i)}
+                    onClick={() => {
+                      onChange(r.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <span>{r.name}</span>
                   </button>
                 );
               })
@@ -545,22 +701,13 @@ export default function RegistrationForm({
 
                   <div className="md:col-span-2">
                     <label className="mb-1 block text-sm font-medium">Referral (opsional)</label>
-                    <select
-                      className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    <ReferralSelect
+                      items={referrals}
                       value={referralId}
-                      onChange={(e) =>
-                        setReferralId(
-                          e.target.value === '' ? '' : Number(e.target.value),
-                        )
-                      }
-                    >
-                      <option value="">— Tidak ada —</option>
-                      {(Array.isArray(referrals) ? referrals : []).map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.name}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setReferralId}
+                      placeholder="Cari & pilih referral"
+                      disabled={loadingRef}
+                    />
                     {loadingRef && (
                       <div className="mt-1 text-xs text-slate-500">
                         Memuat daftar referral…
