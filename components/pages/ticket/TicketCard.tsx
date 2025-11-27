@@ -16,9 +16,7 @@ const WIB_OFFSET = '+07:00';
 function parseToWIB(dateStr?: string | null): Date | null {
   if (!dateStr) return null;
   const s = String(dateStr).trim();
-  // kalau sudah ada Z atau offset => langsung pakai
   if (/[zZ]|[+\-]\d{2}:\d{2}$/.test(s)) return new Date(s);
-  // format "YYYY-MM-DD HH:MM:SS" => paksa ke WIB
   return new Date(s.replace(' ', 'T') + WIB_OFFSET);
 }
 
@@ -52,7 +50,6 @@ function formatWIBTimeRange(start?: string | null, end?: string | null): string 
   return `${startTime} – ${endTime}`;
 }
 
-// buat checked_in_at dsb
 function formatWIBDateTime(dateStr?: string | null): string {
   const d = parseToWIB(dateStr);
   if (!d) return '-';
@@ -65,7 +62,6 @@ function formatWIBDateTime(dateStr?: string | null): string {
     minute: '2-digit',
   });
 }
-
 
 export default function TicketCard({
   tx,
@@ -93,11 +89,12 @@ export default function TicketCard({
 
   return (
     <>
-      {/* ===== SCREEN ===== */}
-      <div className="mb-24 sm:mb-0 print:hidden">
+      <div className="mb-24 sm:mb-0">
         <Card className="relative border border-gray-200 bg-white p-4 sm:p-6 md:rounded-2xl md:p-8">
           <div className="mb-4 text-center">
-            <h1 className="text-lg font-bold sm:text-xl md:text-2xl">Tiket Event Anda</h1>
+            <h1 className="text-lg font-bold sm:text-xl md:text-2xl">
+              Tiket Event Anda
+            </h1>
             <p className="text-xs text-gray-600 sm:text-sm">
               Simpan tiket ini &amp; tunjukkan saat registrasi masuk.
             </p>
@@ -110,7 +107,8 @@ export default function TicketCard({
                   {event.title}
                 </h2>
                 <p className="text-gray-600">
-                  {formatWIBDate(event.start_date)} • {formatWIBTimeRange(event.start_date, event.end_date)}
+                  {formatWIBDate(event.start_date)} •{' '}
+                  {formatWIBTimeRange(event.start_date, event.end_date)}
                 </p>
                 <p className="text-gray-600">{event.location}</p>
               </div>
@@ -118,16 +116,24 @@ export default function TicketCard({
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div>
-                <h3 className="mb-2 text-sm font-semibold text-gray-700">Pemegang Tiket</h3>
+                <h3 className="mb-2 text-sm font-semibold text-gray-700">
+                  Pemegang Tiket
+                </h3>
                 <p className="text-gray-800">{tx.ticket_holder_name}</p>
                 <p className="text-gray-600">{tx.ticket_holder_email}</p>
                 <p className="text-gray-600">{tx.ticket_holder_phone}</p>
               </div>
               <div>
-                <h3 className="mb-2 text-sm font-semibold text-gray-700">Detail Tiket</h3>
+                <h3 className="mb-2 text-sm font-semibold text-gray-700">
+                  Detail Tiket
+                </h3>
                 <p className="text-gray-800">{ticket.title}</p>
-                <p className="font-bold text-gray-800">{fmtIDR(tx.total_amount)}</p>
-                <p className="break-all text-gray-600">Kode Transaksi: {tx.id}</p>
+                <p className="font-bold text-gray-800">
+                  {fmtIDR(tx.total_amount)}
+                </p>
+                <p className="break-all text-gray-600">
+                  Kode Transaksi: {tx.id}
+                </p>
                 {tx.checked_in_at && (
                   <p className="mt-2 text-xs text-gray-600">
                     Digunakan pada {formatWIBDateTime(tx.checked_in_at)}
@@ -155,17 +161,20 @@ export default function TicketCard({
           </div>
         </Card>
 
-        <div className="mt-6 hidden justify-center gap-3 sm:flex">
+        <div className="mt-6 flex flex-col items-stretch justify-center gap-3 sm:flex-row print:hidden">
           <Button
             variant="secondary"
-            className="h-11 px-6"
+            className="h-11 w-full px-6 sm:w-auto"
             onClick={() => window.print()}
           >
             Cetak Tiket
           </Button>
           {event?.slug ? (
-            <Link href={`/events/${event.slug}`}>
-              <Button variant="secondary" className="h-11 px-6">
+            <Link href={`/events/${event.slug}`} className="w-full sm:w-auto">
+              <Button
+                variant="secondary"
+                className="h-11 w-full px-6 sm:w-auto"
+              >
                 Kembali ke Acara
               </Button>
             </Link>
@@ -192,7 +201,7 @@ export default function TicketCard({
           text-transform: uppercase;
           letter-spacing: 0.18em;
           color: rgba(100, 116, 139, 0.9);
-          font-size: 2.2rem; /* FIXED: sama di HP & desktop */
+          font-size: 2.2rem;
           line-height: 1.1;
           white-space: nowrap;
           text-shadow: 0 0 3px rgba(255, 255, 255, 0.9);

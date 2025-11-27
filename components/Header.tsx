@@ -12,9 +12,7 @@ export default function Header() {
   const router = useRouter();
 
   const isAdmin = pathname?.startsWith('/admin');
-  const isRegisterPage =
-    pathname?.startsWith('/events/') && pathname?.includes('/register');
-  const showSearch = !isAdmin && !isRegisterPage;
+  const showSearch = !isAdmin;
 
   useEffect(() => {
     setIsClient(true);
@@ -39,7 +37,7 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-white/85 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-white/85 backdrop-blur print:hidden">
       <div className="mx-auto max-w-7xl px-4">
         <div className="flex h-16 items-center justify-between">
           <Link
