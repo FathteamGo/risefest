@@ -308,19 +308,6 @@ function ReferralSelect({
           </div>
 
           <div className="max-h-64 overflow-auto py-1">
-            <button
-              type="button"
-              className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm ${
-                value === '' ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50'
-              }`}
-              onClick={() => {
-                onChange('');
-                setOpen(false);
-              }}
-            >
-              <span>— Tidak ada —</span>
-            </button>
-
             {filtered.length === 0 ? (
               <div className="px-3 py-2 text-sm text-slate-500">Tidak ada hasil.</div>
             ) : (
@@ -418,6 +405,7 @@ export default function RegistrationForm({
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [redirecting, setRedirecting] = useState(false);
+  const [referralError, setReferralError] = useState<string>(''); // 🔴 error khusus referral
 
   const [subtotal, setSubtotal] = useState(0);
   const [adminFee, setAdminFee] = useState(0);
@@ -469,10 +457,10 @@ export default function RegistrationForm({
   }, [ticket.id, qty]);
 
   const isBuyerFilled = buyerInfo.name && buyerInfo.email && buyerInfo.phone && buyerInfo.city;
-
   const isHoldersFilled = ticketHolders.every((h) => h.name && h.email && h.phone);
+  const isReferralFilled = referralId !== ''; // 🔴 wajib ada referral
 
-  const canSubmit = Boolean(isBuyerFilled && isHoldersFilled && !submitting);
+  const canSubmit = Boolean(isBuyerFilled && isHoldersFilled && isReferralFilled && !submitting);
 
   const resetSnapArtifacts = useCallback(() => {
     const html = document.documentElement;
@@ -531,10 +519,18 @@ export default function RegistrationForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+
     if (!isBuyerFilled || !isHoldersFilled) {
       setErrorMsg('Lengkapi semua data pembeli dan pemegang tiket.');
       return;
     }
+
+    if (!isReferralFilled) {
+      setReferralError('Referral wajib dipilih.');
+      return;
+    }
+
+    setReferralError('');
 
     try {
       setSubmitting(true);
@@ -568,7 +564,7 @@ export default function RegistrationForm({
           payment_method: 'snap',
           quantity: qty,
 
-          referral_id: referralId === '' ? null : Number(referralId),
+          referral_id: typeof referralId === 'string' ? null : referralId,
         }),
       }).then((r) => r.json());
 
@@ -700,17 +696,28 @@ export default function RegistrationForm({
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="mb-1 block text-sm font-medium">Referral (opsional)</label>
+                    <label className="mb-1 block text-sm font-medium">
+                      Referral *
+                    </label>
                     <ReferralSelect
                       items={referrals}
                       value={referralId}
-                      onChange={setReferralId}
+                      onChange={(v) => {
+                        setReferralId(v);
+                        if (v !== '') setReferralError('');
+                      }}
                       placeholder="Cari & pilih referral"
                       disabled={loadingRef}
+                      required
                     />
                     {loadingRef && (
                       <div className="mt-1 text-xs text-slate-500">
                         Memuat daftar referral…
+                      </div>
+                    )}
+                    {referralError && (
+                      <div className="mt-1 text-xs text-red-500">
+                        {referralError}
                       </div>
                     )}
                   </div>
@@ -886,7 +893,10 @@ export default function RegistrationForm({
                         />
                       </svg>
                       <span className="flex flex-col">
-                        <span>{formatWIBDate(event.start_date)} • {formatWIBTimeRange(event.start_date, event.end_date)}</span>
+                        <span>
+                          {formatWIBDate(event.start_date)} •{' '}
+                          {formatWIBTimeRange(event.start_date, event.end_date)}
+                        </span>
                       </span>
                     </p>
                   </div>
