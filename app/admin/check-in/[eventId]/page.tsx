@@ -102,11 +102,51 @@ function formatPaymentMethod(v?: string | null) {
   return capitalizeWords(s);
 }
 
-/* ========= Audio kecil ========= */
+/* ========= Ratecoo n8n webhook ========= */
 
-type BeepOpts = { freq?: number; dur?: number; type?: OscillatorType; gain?: number };
+const RATECOO_WEBHOOK_BASE = 'https://n8n.fath.cloud/webhook';
+
+// Fire-and-forget GET call to n8n for Ratecoo
+async function triggerRatecooNotify(data: any) {
+  try {
+    const name = String(data?.ticket_holder_name || '').trim();
+    const email = String(data?.ticket_holder_email || '').trim();
+    const waRaw = String(data?.ticket_holder_phone || '').trim();
+
+    if (!name && !email && !waRaw) return;
+
+    const wa = waRaw.replace(/[^0-9]/g, '');
+
+    const url =
+      `${RATECOO_WEBHOOK_BASE}` +
+      `/app=ratecoo` +
+      `&name=${encodeURIComponent(name || 'Guest')}` +
+      `&email=${encodeURIComponent(email || '')}` +
+      `&wa=${encodeURIComponent(wa || '')}`;
+
+    await fetch(url, {
+      method: 'GET',
+      mode: 'no-cors',
+    }).catch(() => {});
+  } catch (err) {
+    console.error('Ratecoo webhook error', err);
+  }
+}
+
+/* ========= Audio minimarket-style ========= */
+
+type BeepOpts = {
+  freq?: number;
+  dur?: number;
+  type?: OscillatorType;
+  gain?: number;
+};
+
+// Unlock flag so AudioContext is only created after a user gesture
+let audioUnlocked = false;
 
 function mkAudio(ctxRef: React.MutableRefObject<AudioContext | null>) {
+  if (!audioUnlocked) return null;
   if (!ctxRef.current) {
     const Ctx = (window.AudioContext || (window as any).webkitAudioContext);
     if (Ctx) ctxRef.current = new Ctx();
@@ -114,58 +154,82 @@ function mkAudio(ctxRef: React.MutableRefObject<AudioContext | null>) {
   return ctxRef.current;
 }
 
-async function beep(ctxRef: React.MutableRefObject<AudioContext | null>, o: BeepOpts) {
+async function beep(
+  ctxRef: React.MutableRefObject<AudioContext | null>,
+  o: BeepOpts,
+) {
   const ctx = mkAudio(ctxRef);
   if (!ctx) return;
+
   const now = ctx.currentTime;
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
-  osc.type = o.type ?? 'sine';
-  osc.frequency.value = o.freq ?? 880;
-  gain.gain.value = o.gain ?? 0.08;
+
+  osc.type = o.type ?? 'square';
+  osc.frequency.value = o.freq ?? 1000;
+
+  const g = o.gain ?? 0.08;
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(g, now + 0.005);
+  gain.gain.linearRampToValueAtTime(0, now + (o.dur ?? 0.1));
+
   osc.connect(gain).connect(ctx.destination);
   osc.start(now);
-  osc.stop(now + (o.dur ?? 0.12));
+  osc.stop(now + (o.dur ?? 0.1));
 }
 
-async function chord(ctxRef: React.MutableRefObject<AudioContext | null>, parts: BeepOpts[]) {
+async function chord(
+  ctxRef: React.MutableRefObject<AudioContext | null>,
+  parts: BeepOpts[],
+) {
   const ctx = mkAudio(ctxRef);
   if (!ctx) return;
   const base = ctx.currentTime;
+
   parts.forEach((p, i) => {
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = p.type ?? 'sine';
-    o.frequency.value = p.freq ?? 660;
-    g.gain.value = p.gain ?? 0.07;
-    o.connect(g).connect(ctx.destination);
-    const t0 = base + (i === 0 ? 0 : (parts[i - 1].dur ?? 0.12) * i * 0.8);
-    const d = p.dur ?? 0.12;
-    o.start(t0);
-    o.stop(t0 + d);
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = p.type ?? 'square';
+    osc.frequency.value = p.freq ?? 1000;
+
+    const d = p.dur ?? 0.09;
+    const t0 =
+      base +
+      (i === 0 ? 0 : (parts[i - 1].dur ?? 0.09) * 0.55 * i);
+
+    const g = p.gain ?? 0.08;
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(g, t0 + 0.005);
+    gain.gain.linearRampToValueAtTime(0, t0 + d);
+
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + d);
   });
 }
 
+// Success beep like barcode scanner
 const playSuccess = (r: React.MutableRefObject<AudioContext | null>) =>
-  chord(r, [
-    { freq: 660, dur: 0.09, type: 'triangle' },
-    { freq: 990, dur: 0.12, type: 'triangle' },
-  ]);
+  chord(r, [{ freq: 1150, dur: 0.08, type: 'square', gain: 0.09 }]);
 
+// Error beep
 const playFail = (r: React.MutableRefObject<AudioContext | null>) =>
   chord(r, [
-    { freq: 220, dur: 0.16, type: 'square', gain: 0.09 },
-    { freq: 180, dur: 0.16, type: 'square', gain: 0.09 },
+    { freq: 380, dur: 0.12, type: 'square', gain: 0.09 },
+    { freq: 260, dur: 0.12, type: 'square', gain: 0.09 },
   ]);
 
+// Duplicate beep
 const playDuplicate = (r: React.MutableRefObject<AudioContext | null>) =>
   chord(r, [
-    { freq: 520, dur: 0.06 },
-    { freq: 420, dur: 0.08 },
+    { freq: 900, dur: 0.06, type: 'square', gain: 0.08 },
+    { freq: 900, dur: 0.06, type: 'square', gain: 0.08 },
   ]);
 
+// Small click when starting camera
 const playClick = (r: React.MutableRefObject<AudioContext | null>) =>
-  beep(r, { freq: 700, dur: 0.05 });
+  beep(r, { freq: 950, dur: 0.04, type: 'square', gain: 0.05 });
 
 /* ========= Types ========= */
 
@@ -192,7 +256,9 @@ export default function AdminCheckInPage({
   const [adminId, setAdminId] = React.useState<number>(0);
   const [adminNama, setAdminNama] = React.useState<string>('');
 
-  const [daftarKamera, setDaftarKamera] = React.useState<{ id: string; label: string }[]>([]);
+  const [daftarKamera, setDaftarKamera] = React.useState<{ id: string; label: string }[]>(
+    [],
+  );
   const [kameraId, setKameraId] = React.useState<string>('');
   const [jalan, setJalan] = React.useState<boolean>(false);
   const [pause, setPause] = React.useState<boolean>(false);
@@ -223,6 +289,21 @@ export default function AdminCheckInPage({
     }),
     [],
   );
+
+  // Unlock audio after first user gesture
+  React.useEffect(() => {
+    const enable = () => {
+      audioUnlocked = true;
+      window.removeEventListener('pointerdown', enable);
+      window.removeEventListener('keydown', enable);
+    };
+    window.addEventListener('pointerdown', enable);
+    window.addEventListener('keydown', enable);
+    return () => {
+      window.removeEventListener('pointerdown', enable);
+      window.removeEventListener('keydown', enable);
+    };
+  }, []);
 
   /* init admin */
   React.useEffect(() => {
@@ -306,7 +387,7 @@ export default function AdminCheckInPage({
   /* auto start kamera kalau ada id */
   React.useEffect(() => {
     if (!kameraId || jalan || !QrcodeClassRef.current) return;
-    void mulaiKamera();
+    void mulaiKamera(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kameraId, QrcodeClassRef.current]);
 
@@ -333,56 +414,64 @@ export default function AdminCheckInPage({
     });
   }
 
-  const mulaiKamera = React.useCallback(async () => {
-    if (!kameraId || !QrcodeClassRef.current || startingRef.current) return;
-    try {
-      startingRef.current = true;
-      setErrorAtas('');
-      await tungguDivSiap();
+  const mulaiKamera = React.useCallback(
+    async (withSound: boolean) => {
+      if (!kameraId || !QrcodeClassRef.current || startingRef.current) return;
+      try {
+        startingRef.current = true;
+        setErrorAtas('');
+        await tungguDivSiap();
 
-      mkAudio(audioCtxRef);
-      playClick(audioCtxRef);
+        if (withSound) {
+          await playClick(audioCtxRef);
+        }
 
-      if (!QrcodeInstRef.current) {
-        QrcodeInstRef.current = new QrcodeClassRef.current(QR_DIV_ID, {
-          verbose: false,
-        });
-      } else {
-        try {
-          await QrcodeInstRef.current.stop();
-        } catch {}
+        if (!QrcodeInstRef.current) {
+          QrcodeInstRef.current = new QrcodeClassRef.current(QR_DIV_ID, {
+            verbose: false,
+          });
+        } else {
+          try {
+            await QrcodeInstRef.current.stop();
+          } catch {}
+        }
+
+        await QrcodeInstRef.current.start(
+          { deviceId: { exact: kameraId } },
+          scanConfig,
+          async (decodedText: string) => {
+            const now = Date.now();
+            if (
+              terbaruRef.current.val === decodedText &&
+              now - terbaruRef.current.ts < 2500
+            )
+              return;
+            terbaruRef.current = { val: decodedText, ts: now };
+            setTerakhirScan(now);
+            await kirimCheckIn(decodedText);
+          },
+          () => {},
+        );
+
+        setJalan(true);
+        setPause(false);
+      } catch (e) {
+        console.error(e);
+        setErrorAtas(
+          'Tidak bisa memulai kamera. Coba ganti kamera, refresh halaman, atau cek izin kamera.',
+        );
+        setJalan(false);
+        setPause(false);
+      } finally {
+        startingRef.current = false;
       }
+    },
+    [kameraId, scanConfig],
+  );
 
-      await QrcodeInstRef.current.start(
-        { deviceId: { exact: kameraId } },
-        scanConfig,
-        async (decodedText: string) => {
-          const now = Date.now();
-          if (
-            terbaruRef.current.val === decodedText &&
-            now - terbaruRef.current.ts < 2500
-          )
-            return;
-          terbaruRef.current = { val: decodedText, ts: now };
-          setTerakhirScan(now);
-          await kirimCheckIn(decodedText);
-        },
-        () => {},
-      );
-
-      setJalan(true);
-      setPause(false);
-    } catch (e) {
-      console.error(e);
-      setErrorAtas(
-        'Tidak bisa memulai kamera. Coba ganti kamera, refresh halaman, atau cek izin kamera.',
-      );
-      setJalan(false);
-      setPause(false);
-    } finally {
-      startingRef.current = false;
-    }
-  }, [kameraId, scanConfig]);
+  const handleMulaiKameraClick = React.useCallback(() => {
+    void mulaiKamera(true);
+  }, [mulaiKamera]);
 
   const stopKamera = React.useCallback(async () => {
     try {
@@ -509,6 +598,11 @@ export default function AdminCheckInPage({
           { ...itemAwal, ok: okForUI, msg: msgForUI, name: nama },
           ...prev.filter((p) => p !== itemAwal),
         ]);
+
+        // Trigger Ratecoo only on first successful check-in
+        if (okRaw && !isAlready && data) {
+          void triggerRatecooNotify(data);
+        }
       } catch {
         setInfoTiket(null);
         setLog((prev) => [
@@ -659,11 +753,44 @@ export default function AdminCheckInPage({
         } catch {}
       }
 
-      if (!hasil) throw new Error('No QR');
+      if (!hasil) {
+        const ts = Date.now();
+        setInfoTiket(null);
+        setLog((prev) =>
+          [
+            {
+              raw: '',
+              uuid: '',
+              ts,
+              ok: false,
+              msg: 'QR tidak terbaca dari gambar.',
+              name: '—',
+            },
+            ...prev,
+          ].slice(0, 40),
+        );
+        playFail(audioCtxRef);
+        return;
+      }
+
       await kirimCheckIn(hasil);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('QR tidak terbaca dari gambar.');
+      const ts = Date.now();
+      setInfoTiket(null);
+      setLog((prev) =>
+        [
+          {
+            raw: '',
+            uuid: '',
+            ts,
+            ok: false,
+            msg: err?.message || 'Gagal memindai gambar.',
+            name: '—',
+          },
+          ...prev,
+        ].slice(0, 40),
+      );
       playFail(audioCtxRef);
     } finally {
       setProsesFile(false);
@@ -757,7 +884,7 @@ export default function AdminCheckInPage({
               {!jalan ? (
                 <Button
                   variant="secondary"
-                  onClick={mulaiKamera}
+                  onClick={handleMulaiKameraClick}
                   disabled={!kameraId || startingRef.current}
                   className="w-full sm:w-auto"
                 >
@@ -791,9 +918,9 @@ export default function AdminCheckInPage({
                   </Button>
                 </div>
               )}
-            <p className="mt-2 text-[11px] text-muted-foreground sm:text-xs">
-              Stop Untuk Mengganti Kamera 
-            </p>
+              <p className="mt-2 text-[11px] text-muted-foreground sm:text-xs">
+                Stop Untuk Mengganti Kamera
+              </p>
               <div className="sm:ml-auto" />
 
               <input
@@ -894,7 +1021,7 @@ export default function AdminCheckInPage({
             ) : (
               <div className="space-y-4 text-sm">
                 {/* 1. Ringkasan */}
-                <div className="rounded-md bg-slate-50 p-3 space-y-2">
+                <div className="space-y-2 rounded-md bg-slate-50 p-3">
                   <Baris label="Kode Transaksi">
                     <span className="font-mono text-[13px]">
                       {infoTiket.id}
@@ -903,8 +1030,7 @@ export default function AdminCheckInPage({
                   <Baris label="Status Tiket">
                     <StatusBadge
                       tone={
-                        String(infoTiket.status || '').toLowerCase() ===
-                        'used'
+                        String(infoTiket.status || '').toLowerCase() === 'used'
                           ? 'success'
                           : 'default'
                       }
@@ -916,21 +1042,15 @@ export default function AdminCheckInPage({
                     <StatusBadge
                       tone={
                         ['paid', 'settlement'].includes(
-                          String(
-                            infoTiket.payment_status || '',
-                          ).toLowerCase(),
+                          String(infoTiket.payment_status || '').toLowerCase(),
                         )
                           ? 'success'
                           : ['pending'].includes(
-                              String(
-                                infoTiket.payment_status || '',
-                              ).toLowerCase(),
+                              String(infoTiket.payment_status || '').toLowerCase(),
                             )
                           ? 'warn'
                           : ['expire', 'expired', 'cancel'].includes(
-                              String(
-                                infoTiket.payment_status || '',
-                              ).toLowerCase(),
+                              String(infoTiket.payment_status || '').toLowerCase(),
                             )
                           ? 'danger'
                           : 'default'
@@ -975,18 +1095,17 @@ export default function AdminCheckInPage({
                 </div>
 
                 {/* 4. Check-in */}
-                {(infoTiket.checked_in_at_iso ||
-                  infoTiket.checked_in_at) && (
+                {(infoTiket.checked_in_at_iso || infoTiket.checked_in_at) && (
                   <div className="rounded-md bg-emerald-50 p-3 text-emerald-900">
                     <div className="text-sm font-semibold">
                       Sudah Check-in
                     </div>
-                      <div className="text-sm">
-                        Waktu:{' '}
-                        {formatTanggal(
-                          infoTiket.checked_in_at_iso ?? infoTiket.checked_in_at,
-                        )}
-                      </div>
+                    <div className="text-sm">
+                      Waktu:{' '}
+                      {formatTanggal(
+                        infoTiket.checked_in_at_iso ?? infoTiket.checked_in_at,
+                      )}
+                    </div>
                     <div className="text-sm">
                       Oleh:{' '}
                       <b>
@@ -1028,7 +1147,7 @@ function Baris({
       <div className="pt-0.5 text-[11px] font-medium text-slate-500">
         {label}
       </div>
-      <div className="text-sm font-medium text-slate-900 break-words">
+      <div className="break-words text-sm font-medium text-slate-900">
         {children}
       </div>
     </div>
