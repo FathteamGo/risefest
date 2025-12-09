@@ -104,7 +104,7 @@ function formatPaymentMethod(v?: string | null) {
 
 /* ========= Ratecoo n8n webhook ========= */
 
-const RATECOO_WEBHOOK_BASE = 'https://n8n.fath.cloud/webhook';
+const RATECOO_WEBHOOK_URL = 'https://n8n.fath.cloud/webhook/app=ratecoo';
 
 // Fire-and-forget GET call to n8n for Ratecoo
 async function triggerRatecooNotify(data: any) {
@@ -118,9 +118,8 @@ async function triggerRatecooNotify(data: any) {
     const wa = waRaw.replace(/[^0-9]/g, '');
 
     const url =
-      `${RATECOO_WEBHOOK_BASE}` +
-      `/app=ratecoo` +
-      `&name=${encodeURIComponent(name || 'Guest')}` +
+      `${RATECOO_WEBHOOK_URL}` +
+      `?name=${encodeURIComponent(name || 'Guest')}` +
       `&email=${encodeURIComponent(email || '')}` +
       `&wa=${encodeURIComponent(wa || '')}`;
 
